@@ -115,7 +115,7 @@ convolute :: Measure -> Measure -> Measure
 convolute mu nu f = nu $ \y -> mu $ \x -> f $ x + y
 
 -- | For a random variable X, measurable function f, and measure P, we can 
---   construct the image (pushforward) measure P (f X). 
+--   construct the image (pushforward) measure P_X. 
 push :: (Double -> Double) -> Measure -> Measure
 push f mu g = mu $ g . f
 
