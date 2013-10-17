@@ -5,7 +5,7 @@
 --
 -- Push trigonometric functions on each and convolute the results.
 --
--- Push an exponential function on that, and calculate the mean of that 
+-- Push an exponential function on that, and calculate the mean of the resulting 
 -- distribution.
 --
 
@@ -19,13 +19,21 @@ import System.Random.MWC.Distributions
 standardNormal = density $ normalDistr 0 1
 
 main = do
-  g       <- create
-  samples <- replicateM 30 $ exponential 1 g
+  expSamples <- withSystemRandom . asGenIO $ \g -> 
+                  replicateM 100 $ exponential 1 g
+
+  normSamples <- withSystemRandom . asGenIO $ \g ->
+                  replicateM 100 $ normal 0 1 g
 
   let mu  = fromDensity standardNormal
-      nu  = fromObservations samples
+      nu  = fromObservations expSamples
       rho = convolute (push cos mu) (push sin nu)
       eta = push exp rho
 
-  print $ mean eta
+  putStrLn $ "mean of normal samples (should be around 0):                " ++ 
+               show (mean . fromObservations $ normSamples)
+  putStrLn $ "variance of normal samples (should be around 1):            " ++ 
+               show (variance . fromObservations $ normSamples)
+  putStrLn $ "let X ~ N(0, 1), Y ~ observed.  mean of exp(cos X + sin Y): " ++
+               show (mean eta)
 
