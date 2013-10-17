@@ -1,5 +1,6 @@
 module Measurable where
 
+import Control.Applicative
 import Numeric.Integration.TanhSinh
 
 -- | A measure is a set function from some sigma-algebra to the extended real
@@ -43,7 +44,7 @@ type Measure = (Double -> Double) -> Double
 --   
 --   ($) :: (a -> b) -> a -> b
 --
---   expectation = ($)
+--   expectation == ($)
 --
 --   So there's no need to express expectation as its own operator.  We can just
 --   define particular expectations that are interesting.  Moments, for example.
@@ -104,18 +105,18 @@ fromObservations xs f = normalize . sum . map f $ xs
 
 -- | Construct a measure from a density function.
 fromDensity :: (Double -> Double) -> (Double -> Double) -> Double
-fromDensity d f = quadratureTanhSinh $ \x -> f x * d x
+fromDensity d f = quadratureTanhSinh $ liftA2 (*) f d
   where quadratureTanhSinh = result . last . everywhere trap
 
 -- | Measure composition is convolution.  This allows us to compose measures,
 --   independent of how they were constructed. 
 --
---   NOTE I think this is 'id' on the category of measures.
+--   NOTE I think this is '.' on the category of measures.
 convolute :: Measure -> Measure -> Measure
 convolute mu nu f = nu $ \y -> mu $ \x -> f $ x + y
 
 -- | For a random variable X, measurable function f, and measure P, we can 
---   construct the image (pushforward) measure P_X. 
+--   construct the image (pushforward) measure P_(f X).
 push :: (Double -> Double) -> Measure -> Measure
 push f mu g = mu $ g . f
 
