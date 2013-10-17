@@ -23,11 +23,7 @@ import Numeric.Integration.TanhSinh
 --   a set and returning a probability, we can take a function and return a
 --   probability.
 
--- NOTE I probably want to generalize this to something like
---
---      newtype Measure a = Measure { measure :: (a -> a) -> Double }
---
-type Measure = (Double -> Double) -> Double
+type Measure a = (a -> Double) -> Double
 
 -- | Once we have a measure, we use it by integrating against it.  Take a 
 --   real-valued random variable (i.e., measurable function) /X/.  The mean of X
@@ -37,7 +33,7 @@ type Measure = (Double -> Double) -> Double
 --   measures.  Expectation can be defined by taking a measurable function and
 --   applying a measure to it - i.e., it's just function application.
 --
---   expectation :: Measure -> (Double -> Double) -> Double
+--   expectation :: Measure Double -> (Double -> Double) -> Double
 --   expectation 
 --     :: ((Double -> Double) -> Double)   -- (a -> b)
 --     -> (Double -> Double) -> Double     --  a -> b
@@ -52,54 +48,54 @@ type Measure = (Double -> Double) -> Double
 -- NOTE want to add cumulants
 
 -- | The nth raw moment.
-rawMoment :: Integral a => Measure -> a -> Double
+rawMoment :: Integral a => Measure Double -> a -> Double
 rawMoment mu n = mu (^^ n)
 
 -- | All positive raw moments.
-rawMoments :: Measure -> [Double]
+rawMoments :: Measure Double -> [Double]
 rawMoments mu = map (rawMoment mu) [1..]
 
 -- | Alias for first raw moment.
-mean :: Measure -> Double
+mean :: Measure Double -> Double
 mean mu = rawMoment mu 1
 
 -- | The nth central moment.
 --
 -- NOTE slow-as in ghci.  Need to memoize or something, or this might just 
 --      disappear when compiling.
-centralMoment :: Integral a => Measure -> a -> Double
+centralMoment :: Integral a => Measure Double -> a -> Double
 centralMoment mu n = mu $ (^^ n) . \x -> x - rawMoment mu 1
 
 -- | All positive central moments.
-centralMoments :: Measure -> [Double]
+centralMoments :: Measure Double -> [Double]
 centralMoments mu = map (centralMoment mu) [1..]
 
 -- | Alias for second central moment.
-variance :: Measure -> Double
+variance :: Measure Double -> Double
 variance mu = centralMoment mu 2
 
 -- | The nth normalized moment.
-normalizedMoment :: Integral a => Measure -> a -> Double
+normalizedMoment :: Integral a => Measure Double -> a -> Double
 normalizedMoment mu n = (/ (sd ^ n)) $ centralMoment mu n
   where sd = sqrt $ centralMoment mu 2
 
 -- | All normalized moments.
-normalizedMoments :: Measure -> [Double]
+normalizedMoments :: Measure Double -> [Double]
 normalizedMoments mu = map (normalizedMoment mu) [1..]
 
 -- | The moment generating function about a point.
-momentGeneratingFunction :: Double -> Measure -> Double
+momentGeneratingFunction :: Double -> Measure Double -> Double
 momentGeneratingFunction t mu = mu $ exp . (* t) . id
 
 -- | The cumulant generating function about a point.
-cumulantGeneratingFunction :: Double -> Measure -> Double
+cumulantGeneratingFunction :: Double -> Measure Double -> Double
 cumulantGeneratingFunction t mu = log $ momentGeneratingFunction t mu
 
 -- | We want two ways to create measures; empirically (i.e. from observations) 
 --   or directly from some integrable function (i.e. a density).  
 
 -- | Construct an empirical measure from observations.
-fromObservations :: [Double] -> Measure
+fromObservations :: [Double] -> Measure Double
 fromObservations xs f = normalize . sum . map f $ xs
   where normalize = (/ fromIntegral (length xs))
 
@@ -108,15 +104,24 @@ fromDensity :: (Double -> Double) -> (Double -> Double) -> Double
 fromDensity d f = quadratureTanhSinh $ liftA2 (*) f d
   where quadratureTanhSinh = result . last . everywhere trap
 
+-- | For a random variable X, measurable function f, and measure P, we can 
+--   construct the image (pushforward) measure P_(f X).
+push :: (Double -> Double) -> Measure Double -> Measure Double
+push f mu g = mu $ g . f
+
 -- | Measure composition is convolution.  This allows us to compose measures,
 --   independent of how they were constructed. 
 --
---   NOTE I think this is '.' on the category of measures.
-convolute :: Measure -> Measure -> Measure
+--   This is (.) on the category of measures.
+convolute :: Measure Double -> Measure Double -> Measure Double
 convolute mu nu f = nu $ \y -> mu $ \x -> f $ x + y
 
--- | For a random variable X, measurable function f, and measure P, we can 
---   construct the image (pushforward) measure P_(f X).
-push :: (Double -> Double) -> Measure -> Measure
-push f mu g = mu $ g . f
+-- | The identity measure.
+--
+--   This is 'id' on the category of measures.
+identity :: Measure Double
+identity = fromObservations [0]
+
+-- instance Functor Measure where
+--   fmap f mu = push f mu
 
