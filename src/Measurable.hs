@@ -48,12 +48,16 @@ import Numeric.Integration.TanhSinh
 
 newtype Measure a = Measure { measure :: (a -> Double) -> Double }
 
-instance Functor Measure where
-  fmap = push
-
 instance Fractional a => Monoid (Measure a) where
   mempty  = identityMeasure
   mappend = convolute
+
+instance Functor Measure where
+  fmap = push
+
+instance Applicative Measure where
+  pure  = return
+  (<*>) = ap
 
 instance Monad Measure where
   return x = Measure (\f -> f x)
