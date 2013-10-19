@@ -66,5 +66,5 @@ main = do
   let alpha = fromDensity $ density $ chiSquared 5
 
   putStrLn $ "let X ~ N(2, 1), Y ~ chisq(5).  variance of exp (tanh XY)   " ++
-               show (variance . push (exp . tanh) $ mu * nu)
+               show (variance . push (exp . tanh) $ phi * alpha)
 
