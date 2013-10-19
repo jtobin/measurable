@@ -1,6 +1,4 @@
 -- Simple examples that demonstrate some measure-fu.
---
--- These have become pretty thrown together.  Need to clean them up.
 
 import Control.Applicative
 import Control.Monad
@@ -21,16 +19,21 @@ betaBinomialConjugate a b n = do
   p <- betaMeasure a b
   binomMeasure n p
 
+-- | Workhorse densities.
 standardNormal      = density $ normalDistr 0 1
 genLocationNormal m = density $ normalDistr m 1
 basicBeta a b       = density $ betaDistr a b
+
+-- | A beta measure.
 betaMeasure a b     = fromDensity $ basicBeta a b
 
+-- | A binomial mass function.
 binom p n k | n <= 0    = 0
             | k <  0    = 0
             | n < k     = 0
             | otherwise = n `choose` k * p ^ k * (1 - p) ^ (n - k)
 
+-- | Binomial measure.
 binomMeasure n p = fromMassFunction (\x -> binom p n (truncate x)) 
                                     (map fromIntegral [0..n] :: [Double])
 
@@ -52,10 +55,6 @@ main = do
                show (variance . fromObservations $ normSamples)
   putStrLn $ "let X ~ N(0, 1), Y ~ observed.  mean of exp(cos X + sin Y): " ++
                show (expectation eta)
-
-  putStrLn ""
-  putStrLn "and now some 'woah, this actally seems to make sense' examples:"
-  putStrLn ""
 
   -- Subtraction of measures?
 
@@ -100,7 +99,8 @@ main = do
   putStrLn "Creating from a mass function:"
   putStrLn ""
 
-  let kappa = fromMassFunction (\x -> binom 0.5 10 (truncate x)) [0..10]
+  
+  let kappa = binomMeasure 10 0.5
 
   putStrLn $ "let X ~ binom(10, 0.5).  mean of X (should be 5):           " ++
                 show (expectation kappa)
