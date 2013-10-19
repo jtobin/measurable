@@ -78,13 +78,13 @@ instance Monad Measure where
 volume :: Measure a -> Double
 volume mu = measure mu (const 1)
 
--- | The mean is obtained by integrating against the identity function.
-mean :: Measure Double -> Double
-mean mu = measure mu id
+-- | The expectation is obtained by integrating against the identity function.
+expectation :: Measure Double -> Double
+expectation mu = measure mu id
 
 -- | The variance is obtained by integrating against the usual function.
 variance :: Measure Double -> Double
-variance mu = measure mu (^ 2) - mean mu ^ 2
+variance mu = measure mu (^ 2) - expectation mu ^ 2
 
 -- | Create a measure from a collection of observations from some distribution.
 fromObservations :: Fractional a => [a] -> Measure a
@@ -103,7 +103,7 @@ identityMeasure = fromObservations []
 average :: Fractional a => [a] -> a
 average xs = fst $ foldl' 
   (\(!m, !n) x -> (m + (x - m) / fromIntegral (n + 1), n + 1)) (0, 0) xs
-{-# INLINE mean #-}
+{-# INLINE average #-}
 
 -- | Weighted average.
 weightedAverage :: Fractional c => (a -> c) -> [a] -> c
@@ -137,5 +137,5 @@ to a b x | x >= a && x <= b = 1
 --   > cdf (1 / 0)
 --   0.999
 cdf :: Measure Double -> Double -> Double
-cdf mu b = mean $ negate (1 / 0) `to` b <$> mu
+cdf mu b = expectation $ negate (1 / 0) `to` b <$> mu
 

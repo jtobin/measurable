@@ -26,11 +26,11 @@ main = do
       eta = exp <$> rho
 
   putStrLn $ "mean of normal samples (should be around 0):                " ++ 
-               show (mean . fromObservations $ normSamples)
+               show (expectation . fromObservations $ normSamples)
   putStrLn $ "variance of normal samples (should be around 1):            " ++ 
                show (variance . fromObservations $ normSamples)
   putStrLn $ "let X ~ N(0, 1), Y ~ observed.  mean of exp(cos X + sin Y): " ++
-               show (mean eta)
+               show (expectation eta)
 
   putStrLn ""
   putStrLn "and now some 'woah, this actally seems to make sense' examples:"
@@ -41,7 +41,7 @@ main = do
   let iota = mu - mu
   
   putStrLn $ "let X, Y be independent N(0, 1).  mean of X - Y:            " ++
-               show (mean iota)
+               show (expectation iota)
   putStrLn $ "let X, Y be independent N(0, 1).  variance of X - Y:        " ++
                show (variance iota)
 
@@ -52,7 +52,7 @@ main = do
       zeta = phi * xi
 
   putStrLn $ "let X ~ N(2, 1), Y ~ N(3, 1). mean of XY (should be 6)      " ++
-               show (mean zeta)
+               show (expectation zeta)
   putStrLn $ "let X ~ N(2, 1), Y ~ N(3, 1). variance of XY (should be 14) " ++
                show (variance zeta)
 
@@ -67,9 +67,12 @@ main = do
   putStrLn ""
 
   putStrLn $ "let X ~ N(0, 1).  P(X < 0) (should be ~ 0.5):               " ++
-               show (mean $ negate (1 / 0) `to` 0 <$> mu)
+               show (cdf mu 0)
 
   putStrLn $ "let X ~ N(0, 1).  P(0 < X < 1) (should be ~ 0.341):         " ++
-               show (mean $ 0 `to` 1 <$> mu)
+               show (expectation $ 0 `to` 1 <$> mu)
+
+  putStrLn $ "let X ~ N(0, 1), Y ~ observed.  P(0 < X < 0.8):             " ++
+               show (expectation $ 0 `to` 0.8 <$> (mu + nu))
 
 
