@@ -46,7 +46,9 @@ import Numeric.Integration.TanhSinh
 --   suit.
 --
 --   The strength of the Monad instance is that it allows us to do Bayesian 
---   inference.  prior >>= likelihood == posterior.
+--   inference.  That is, 
+--
+--   priorMeasure >>= likelihoodMeasure == posteriorPredictiveMeasure
 
 newtype Measure a = Measure { measure :: (a -> Double) -> Double }
 
