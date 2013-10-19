@@ -1,6 +1,8 @@
 -- Simple examples that demonstrate some measure-foo.
 
+import Control.Applicative
 import Control.Monad
+import Control.Monad.Trans
 import Measurable
 import Statistics.Distribution hiding (mean, variance)
 import Statistics.Distribution.Normal
@@ -20,8 +22,8 @@ main = do
 
   let mu  = fromDensity standardNormal
       nu  = fromObservations expSamples
-      rho = (fmap cos mu) + (fmap sin nu)
-      eta = fmap exp rho
+      rho = (cos <$> mu) + (sin <$> nu)
+      eta = exp <$> rho
 
   putStrLn $ "mean of normal samples (should be around 0):                " ++ 
                show (mean . fromObservations $ normSamples)
@@ -55,7 +57,19 @@ main = do
                show (variance zeta)
 
   let alpha = fromDensity $ density $ chiSquared 5
+      beta  = (exp . tanh) <$> (phi * alpha)
 
   putStrLn $ "let X ~ N(2, 1), Y ~ chisq(5).  variance of exp (tanh XY)   " ++
-               show (variance . fmap (exp . tanh) $ phi * alpha)
+               show (variance beta)
+
+  putStrLn ""
+  putStrLn "Some probability examples:"
+  putStrLn ""
+
+  putStrLn $ "let X ~ N(0, 1).  P(X < 0) (should be ~ 0.5):               " ++
+               show (mean $ negate (1 / 0) `to` 0 <$> mu)
+
+  putStrLn $ "let X ~ N(0, 1).  P(0 < X < 1) (should be ~ 0.341):         " ++
+               show (mean $ 0 `to` 1 <$> mu)
+
 

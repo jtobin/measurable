@@ -110,3 +110,32 @@ weightedAverage :: Fractional c => (a -> c) -> [a] -> c
 weightedAverage f = average . map f
 {-# INLINE weightedAverage #-}
 
+-- | Integrate from a to b.
+to :: (Num a, Ord a) => a -> a -> a -> a
+to a b x | x >= a && x <= b = 1
+         | otherwise        = 0
+
+-- | Cumulative distribution function for a measure.
+--
+--   Really cool; works perfectly in both discrete and continuous cases.
+--
+--   > let f = cdf (fromObservations [1..10])
+--   > cdf 0
+--   0.0
+--   > cdf 1
+--   0.1
+--   > cdf 10
+--   1.0
+--   > cdf 11
+--   1.0
+--
+--   > let g = cdf (fromDensity standardNormal)
+--   > cdf 0
+--   0.504
+--   > cdf 1
+--   0.838
+--   > cdf (1 / 0)
+--   0.999
+cdf :: Measure Double -> Double -> Double
+cdf mu b = mean $ negate (1 / 0) `to` b <$> mu
+
