@@ -43,8 +43,10 @@ import Numeric.Integration.TanhSinh
 --
 --   This is equivalent to the type that forms the Continuation monad, albeit
 --   with constant (Double) result type.  The functor and monad instances follow
---   suit.  The strength of the Monad instance is that it allows us to meld
---   together measures with different input types.
+--   suit.
+--
+--   The strength of the Monad instance is that it allows us to do Bayesian 
+--   inference.  prior >>= likelihood == posterior.
 
 newtype Measure a = Measure { measure :: (a -> Double) -> Double }
 
@@ -94,6 +96,11 @@ fromObservations xs = Measure (`weightedAverage` xs)
 fromDensity :: (Double -> Double) -> Measure Double
 fromDensity d = Measure $ \f -> quadratureTanhSinh $ liftA2 (*) f d
   where quadratureTanhSinh = result . last . everywhere trap
+
+-- | Create a measure from a mass function.  
+fromMassFunction :: (a -> Double) -> [a] -> Measure a
+fromMassFunction p support = Measure $ \f -> 
+                               sum . map (liftA2 (*) f p) $ support
 
 -- | The (sum) identity measure.
 identityMeasure :: Fractional a => Measure a

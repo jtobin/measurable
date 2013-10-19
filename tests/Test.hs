@@ -1,17 +1,31 @@
--- Simple examples that demonstrate some measure-foo.
+-- Simple examples that demonstrate some measure-fu.
 
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
 import Measurable
+import Numeric.SpecFunctions
 import Statistics.Distribution hiding (mean, variance)
 import Statistics.Distribution.Normal
+import Statistics.Distribution.Beta
+import Statistics.Distribution.Binomial
 import Statistics.Distribution.ChiSquared
 import System.Random.MWC
 import System.Random.MWC.Distributions
 
 standardNormal      = density $ normalDistr 0 1
 genLocationNormal m = density $ normalDistr m 1
+
+basicBeta a b   = density $ betaDistr a b
+betaMeasure a b = fromDensity $ basicBeta a b
+
+binom p n k   | n <= 0    = 0
+              | k <  0    = 0
+              | n < k     = 0
+              | otherwise = n `choose` k * p ^ k * (1 - p) ^ (n - k)
+
+binomMeasure n p = fromMassFunction (\x -> binom p n (truncate x)) 
+                                    (map fromIntegral [0..n] :: [Double])
 
 main = do
   expSamples <- withSystemRandom . asGenIO $ \g -> 
@@ -75,4 +89,27 @@ main = do
   putStrLn $ "let X ~ N(0, 1), Y ~ observed.  P(0 < X < 0.8):             " ++
                show (expectation $ 0 `to` 0.8 <$> (mu + nu))
 
+  putStrLn ""
+  putStrLn "Creating from a mass function:"
+  putStrLn ""
 
+  let kappa = fromMassFunction (\x -> binom 0.5 10 (truncate x)) [0..10]
+
+  putStrLn $ "let X ~ binom(10, 0.5).  mean of X (should be 5):           " ++
+                show (expectation kappa)
+  putStrLn $ "let X ~ binom(10, 0.5).  variance of X (should be 2.5):     " ++
+                show (variance kappa)
+
+  putStrLn ""
+  putStrLn "Bayesian inference"
+  putStrLn ""
+
+  let omega = (betaMeasure 1 4) >>= binomMeasure 10
+
+  putStrLn $ 
+    "let X | p ~ binomial(10, p), p ~ beta(1, 4).  mean of posterior pred.:\n "
+    ++ show (expectation omega)
+  putStrLn $ 
+    "let X | p ~ binomial(10, p), p ~ beta(1, 4).  variance of posterior pred:\n" 
+    ++ show (variance omega)
+  
