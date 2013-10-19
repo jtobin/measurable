@@ -49,6 +49,15 @@ import Numeric.Integration.TanhSinh
 --   inference.  That is, 
 --
 --   priorMeasure >>= likelihoodMeasure == posteriorPredictiveMeasure
+--
+--   Ex, given 'betaMeasure a b' and 'binomMeasure n p' functions that create
+--   the obvious measures, we can express a beta-binomial model like so:
+--
+--   betaBinomialConjugate :: Double -> Double -> Int -> Measure Double
+--   betaBinomialConjugate a b n = do
+--     p <- betaMeasure a b
+--     binomMeasure n p
+--
 
 newtype Measure a = Measure { measure :: (a -> Double) -> Double }
 

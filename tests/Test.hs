@@ -1,4 +1,6 @@
 -- Simple examples that demonstrate some measure-fu.
+--
+-- These have become pretty thrown together.  Need to clean them up.
 
 import Control.Applicative
 import Control.Monad
@@ -13,16 +15,21 @@ import Statistics.Distribution.ChiSquared
 import System.Random.MWC
 import System.Random.MWC.Distributions
 
+-- | A standard beta-binomial conjugate model.
+betaBinomialConjugate :: Double -> Double -> Int -> Measure Double
+betaBinomialConjugate a b n = do
+  p <- betaMeasure a b
+  binomMeasure n p
+
 standardNormal      = density $ normalDistr 0 1
 genLocationNormal m = density $ normalDistr m 1
+basicBeta a b       = density $ betaDistr a b
+betaMeasure a b     = fromDensity $ basicBeta a b
 
-basicBeta a b   = density $ betaDistr a b
-betaMeasure a b = fromDensity $ basicBeta a b
-
-binom p n k   | n <= 0    = 0
-              | k <  0    = 0
-              | n < k     = 0
-              | otherwise = n `choose` k * p ^ k * (1 - p) ^ (n - k)
+binom p n k | n <= 0    = 0
+            | k <  0    = 0
+            | n < k     = 0
+            | otherwise = n `choose` k * p ^ k * (1 - p) ^ (n - k)
 
 binomMeasure n p = fromMassFunction (\x -> binom p n (truncate x)) 
                                     (map fromIntegral [0..n] :: [Double])
@@ -104,10 +111,10 @@ main = do
   putStrLn "Bayesian inference"
   putStrLn ""
 
-  let omega = (betaMeasure 1 4) >>= binomMeasure 10
+  let omega = betaBinomialConjugate 1 4 10
 
   putStrLn $ 
-    "let X | p ~ binomial(10, p), p ~ beta(1, 4).  mean of posterior pred.:\n "
+    "let X | p ~ binomial(10, p), p ~ beta(1, 4).  mean of posterior pred.:\n"
     ++ show (expectation omega)
   putStrLn $ 
     "let X | p ~ binomial(10, p), p ~ beta(1, 4).  variance of posterior pred:\n" 
