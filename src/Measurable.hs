@@ -2,10 +2,10 @@
 
 module Measurable where
 
+import Control.Applicative
 import Control.Monad
 import Data.List
 import Data.Monoid
-import Control.Applicative
 import Numeric.Integration.TanhSinh
 
 -- | A measure is a set function from some sigma-algebra to the extended real
@@ -71,6 +71,10 @@ push :: (a -> b) -> Measure a -> Measure b
 push f mu = Measure pushforward
   where pushforward g = measure mu $ g . f
 
+-- | The volume is obtained by integrating against a constant.
+volume :: Measure a -> Double
+volume mu = measure mu (const 1)
+
 -- | The mean is obtained by integrating against the identity function.
 mean :: Measure Double -> Double
 mean mu = measure mu id
@@ -81,7 +85,8 @@ variance mu = measure mu (^ 2) - mean mu ^ 2
 
 -- | Create a measure from a collection of observations from some distribution.
 fromObservations :: Fractional a => [a] -> Measure a
-fromObservations xs = Measure $ \f -> average . map f $ xs
+fromObservations xs = Measure $ \f -> 
+                        average . map f $ xs
 
 -- | Create a measure from a density function.
 fromDensity :: (Double -> Double) -> Measure Double
@@ -96,8 +101,14 @@ convolute mu nu = Measure $ \f -> measure nu
 
 -- | The (sum) identity measure.
 identityMeasure :: Fractional a => Measure a
-identityMeasure = fromObservations [0]
+identityMeasure = fromObservations []
 
+-- | Lebesgue measure.
+lebesgue :: Double -> Double -> Measure Double
+lebesgue a b = fromDensity rectangle
+  where rectangle x | x >= a && x <= b = 1
+                    | otherwise        = 0
+ 
 -- | Simple average.
 average :: Fractional a => [a] -> a
 average xs = fst $ foldl' 
