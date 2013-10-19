@@ -43,6 +43,8 @@ main = do
   putStrLn "and now some 'woah, this actally seems to make sense' examples:"
   putStrLn ""
 
+  -- Subtraction of measures?
+
   let iota = mu `msubtract` mu
   
   putStrLn $ "let X, Y be independent N(0, 1).  mean of X - Y:            " ++
@@ -50,7 +52,7 @@ main = do
   putStrLn $ "let X, Y be independent N(0, 1).  variance of X - Y:        " ++
                show (variance iota)
 
-  -- 
+  -- Product of measures?  *pops out of cake* YEAH WE CAN DO THAT
 
   let phi  = fromDensity $ genLocationNormal 2
       xi   = fromDensity $ genLocationNormal 3
