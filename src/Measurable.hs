@@ -48,6 +48,14 @@ import Numeric.Integration.TanhSinh
 
 newtype Measure a = Measure { measure :: (a -> Double) -> Double }
 
+instance Num a => Num (Measure a) where
+  (+)         = convolute
+  (-)         = msubtract
+  (*)         = mproduct
+  abs         = id
+  signum mu   = error "fromInteger: not supported for Measures"
+  fromInteger = error "fromInteger: not supported for Measures"
+
 instance Fractional a => Monoid (Measure a) where
   mempty  = identityMeasure
   mappend = convolute
@@ -94,19 +102,19 @@ fromDensity :: (Double -> Double) -> Measure Double
 fromDensity d = Measure $ \f -> quadratureTanhSinh $ liftM2 (*) f d
   where quadratureTanhSinh = result . last . everywhere trap
 
--- | Measure addition is convolution.  
+-- | Measure addition is convolution.  Assumes independence.
 convolute :: Num a => Measure a -> Measure a -> Measure a
 convolute mu nu = Measure $ \f -> measure nu
                             $ \y -> measure mu
                               $ \x -> f (x + y)
 
--- | Measure subtraction. (does this make sense?)
+-- | Measure subtraction.  Assumes independence.
 msubtract :: Num a => Measure a -> Measure a -> Measure a
 msubtract mu nu = Measure $ \f -> measure nu
                             $ \y -> measure mu
                               $ \x -> f (x - y)
 
--- | Measure multiplication. (does this make sense?)
+-- | Measure multiplication.  Assumes independence.
 mproduct :: Num a => Measure a -> Measure a -> Measure a
 mproduct mu nu = Measure $ \f -> measure nu
                            $ \y -> measure mu

@@ -29,7 +29,7 @@ main = do
 
   let mu  = fromDensity standardNormal
       nu  = fromObservations expSamples
-      rho = convolute (push cos mu) (push sin nu)
+      rho = (push cos mu) * (push sin nu)
       eta = push exp rho
 
   putStrLn $ "mean of normal samples (should be around 0):                " ++ 
@@ -45,7 +45,7 @@ main = do
 
   -- Subtraction of measures?
 
-  let iota = mu `msubtract` mu
+  let iota = mu - mu
   
   putStrLn $ "let X, Y be independent N(0, 1).  mean of X - Y:            " ++
                show (mean iota)
@@ -56,10 +56,15 @@ main = do
 
   let phi  = fromDensity $ genLocationNormal 2
       xi   = fromDensity $ genLocationNormal 3
-      zeta = mproduct phi xi
+      zeta = phi * xi
 
   putStrLn $ "let X ~ N(2, 1), Y ~ N(3, 1). mean of XY (should be 6)      " ++
                show (mean zeta)
   putStrLn $ "let X ~ N(2, 1), Y ~ N(3, 1). variance of XY (should be 14) " ++
                show (variance zeta)
+
+  let alpha = fromDensity $ density $ chiSquared 5
+
+  putStrLn $ "let X ~ N(2, 1), Y ~ chisq(5).  variance of exp (tanh XY)   " ++
+               show (variance . push (exp . tanh) $ mu * nu)
 
