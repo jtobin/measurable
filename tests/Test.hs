@@ -1,13 +1,4 @@
--- Simple example that demonstrates some measure-foo.
---
--- Create a measure from a standard normal pdf, and another from a collection of
--- samples drawn from an exponential distribution.
---
--- Push trigonometric functions on each and convolute the results.
---
--- Push an exponential function on that, and calculate the mean of the resulting 
--- distribution.
---
+-- Simple examples that demonstrate some measure-foo.
 
 import Control.Monad
 import Measurable
@@ -29,7 +20,7 @@ main = do
 
   let mu  = fromDensity standardNormal
       nu  = fromObservations expSamples
-      rho = (push cos mu) * (push sin nu)
+      rho = (push cos mu) + (push sin nu)
       eta = push exp rho
 
   putStrLn $ "mean of normal samples (should be around 0):                " ++ 
