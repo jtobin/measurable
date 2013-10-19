@@ -54,7 +54,7 @@ main = do
 
   let phi  = fromDensity $ genLocationNormal 2
       xi   = fromDensity $ genLocationNormal 3
-      zeta = prod phi xi
+      zeta = mproduct phi xi
 
   putStrLn $ "let X ~ N(2, 1), Y ~ N(3, 1). mean of XY (should be 6)      " ++
                show (mean zeta)

@@ -101,15 +101,16 @@ convolute mu nu = Measure $ \f -> measure nu
                               $ \x -> f (x + y)
 
 -- | Measure subtraction. (does this make sense?)
+msubtract :: Num a => Measure a -> Measure a -> Measure a
 msubtract mu nu = Measure $ \f -> measure nu
                             $ \y -> measure mu
                               $ \x -> f (x - y)
 
 -- | Measure multiplication. (does this make sense?)
-prod :: Num a => Measure a -> Measure a -> Measure a
-prod mu nu = Measure $ \f -> measure nu
-                       $ \y -> measure mu
-                         $ \x -> f (x * y)
+mproduct :: Num a => Measure a -> Measure a -> Measure a
+mproduct mu nu = Measure $ \f -> measure nu
+                           $ \y -> measure mu
+                             $ \x -> f (x * y)
 
 -- | The (sum) identity measure.
 identityMeasure :: Fractional a => Measure a
