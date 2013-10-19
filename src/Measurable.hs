@@ -71,7 +71,8 @@ push :: (a -> b) -> Measure a -> Measure b
 push f mu = Measure pushforward
   where pushforward g = measure mu $ g . f
 
--- | The volume is obtained by integrating against a constant.
+-- | The volume is obtained by integrating against a constant.  This is '1' for
+--   any probability measure.
 volume :: Measure a -> Double
 volume mu = measure mu (const 1)
 
@@ -99,16 +100,21 @@ convolute mu nu = Measure $ \f -> measure nu
                             $ \y -> measure mu
                               $ \x -> f (x + y)
 
+-- | Measure subtraction. (does this make sense?)
+msubtract mu nu = Measure $ \f -> measure nu
+                            $ \y -> measure mu
+                              $ \x -> f (x - y)
+
+-- | Measure multiplication. (does this make sense?)
+prod :: Num a => Measure a -> Measure a -> Measure a
+prod mu nu = Measure $ \f -> measure nu
+                       $ \y -> measure mu
+                         $ \x -> f (x * y)
+
 -- | The (sum) identity measure.
 identityMeasure :: Fractional a => Measure a
 identityMeasure = fromObservations []
 
--- | Lebesgue measure.
-lebesgue :: Double -> Double -> Measure Double
-lebesgue a b = fromDensity rectangle
-  where rectangle x | x >= a && x <= b = 1
-                    | otherwise        = 0
- 
 -- | Simple average.
 average :: Fractional a => [a] -> a
 average xs = fst $ foldl' 

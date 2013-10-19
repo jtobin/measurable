@@ -13,10 +13,12 @@ import Control.Monad
 import Measurable
 import Statistics.Distribution hiding (mean, variance)
 import Statistics.Distribution.Normal
+import Statistics.Distribution.ChiSquared
 import System.Random.MWC
 import System.Random.MWC.Distributions
 
-standardNormal = density $ normalDistr 0 1
+standardNormal      = density $ normalDistr 0 1
+genLocationNormal m = density $ normalDistr m 1
 
 main = do
   expSamples <- withSystemRandom . asGenIO $ \g -> 
@@ -36,4 +38,26 @@ main = do
                show (variance . fromObservations $ normSamples)
   putStrLn $ "let X ~ N(0, 1), Y ~ observed.  mean of exp(cos X + sin Y): " ++
                show (mean eta)
+
+  putStrLn ""
+  putStrLn "and now some 'woah, this actally seems to make sense' examples:"
+  putStrLn ""
+
+  let iota = mu `msubtract` mu
+  
+  putStrLn $ "let X, Y be independent N(0, 1).  mean of X - Y:            " ++
+               show (mean iota)
+  putStrLn $ "let X, Y be independent N(0, 1).  variance of X - Y:        " ++
+               show (variance iota)
+
+  -- 
+
+  let phi  = fromDensity $ genLocationNormal 2
+      xi   = fromDensity $ genLocationNormal 3
+      zeta = prod phi xi
+
+  putStrLn $ "let X ~ N(2, 1), Y ~ N(3, 1). mean of XY (should be 6)      " ++
+               show (mean zeta)
+  putStrLn $ "let X ~ N(2, 1), Y ~ N(3, 1). variance of XY (should be 14) " ++
+               show (variance zeta)
 
