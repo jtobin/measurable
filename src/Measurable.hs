@@ -49,19 +49,19 @@ import Numeric.Integration.TanhSinh
 newtype Measure a = Measure { measure :: (a -> Double) -> Double }
 
 instance Num a => Num (Measure a) where
-  (+)         = convolute
-  (-)         = msubtract
-  (*)         = mproduct
+  (+)         = liftA2 (+)
+  (-)         = liftA2 (-)
+  (*)         = liftA2 (*)
   abs         = id
   signum mu   = error "fromInteger: not supported for Measures"
   fromInteger = error "fromInteger: not supported for Measures"
 
 instance Fractional a => Monoid (Measure a) where
   mempty  = identityMeasure
-  mappend = convolute
+  mappend = (+)
 
 instance Functor Measure where
-  fmap = push
+  fmap f mu = Measure $ \g -> measure mu $ g . f -- pushforward/image measure
 
 instance Applicative Measure where
   pure  = return
@@ -72,12 +72,6 @@ instance Monad Measure where
   mu >>= f = Measure $ \d ->
                measure mu $ \g ->
                  measure (f g) d
-
--- | The pushforward measure is obtained by 'pushing' a function onto an 
---   existing measure. 
-push :: (a -> b) -> Measure a -> Measure b
-push f mu = Measure pushforward
-  where pushforward g = measure mu $ g . f
 
 -- | The volume is obtained by integrating against a constant.  This is '1' for
 --   any probability measure.
@@ -94,31 +88,12 @@ variance mu = measure mu (^ 2) - mean mu ^ 2
 
 -- | Create a measure from a collection of observations from some distribution.
 fromObservations :: Fractional a => [a] -> Measure a
-fromObservations xs = Measure $ \f -> 
-                        average . map f $ xs
+fromObservations xs = Measure (`weightedAverage` xs)
 
 -- | Create a measure from a density function.
 fromDensity :: (Double -> Double) -> Measure Double
-fromDensity d = Measure $ \f -> quadratureTanhSinh $ liftM2 (*) f d
+fromDensity d = Measure $ \f -> quadratureTanhSinh $ liftA2 (*) f d
   where quadratureTanhSinh = result . last . everywhere trap
-
--- | Measure addition is convolution.  Assumes independence.
-convolute :: Num a => Measure a -> Measure a -> Measure a
-convolute mu nu = Measure $ \f -> measure nu
-                            $ \y -> measure mu
-                              $ \x -> f (x + y)
-
--- | Measure subtraction.  Assumes independence.
-msubtract :: Num a => Measure a -> Measure a -> Measure a
-msubtract mu nu = Measure $ \f -> measure nu
-                            $ \y -> measure mu
-                              $ \x -> f (x - y)
-
--- | Measure multiplication.  Assumes independence.
-mproduct :: Num a => Measure a -> Measure a -> Measure a
-mproduct mu nu = Measure $ \f -> measure nu
-                           $ \y -> measure mu
-                             $ \x -> f (x * y)
 
 -- | The (sum) identity measure.
 identityMeasure :: Fractional a => Measure a
@@ -129,4 +104,9 @@ average :: Fractional a => [a] -> a
 average xs = fst $ foldl' 
   (\(!m, !n) x -> (m + (x - m) / fromIntegral (n + 1), n + 1)) (0, 0) xs
 {-# INLINE mean #-}
+
+-- | Weighted average.
+weightedAverage :: Fractional c => (a -> c) -> [a] -> c
+weightedAverage f = average . map f
+{-# INLINE weightedAverage #-}
 

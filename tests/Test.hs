@@ -20,8 +20,8 @@ main = do
 
   let mu  = fromDensity standardNormal
       nu  = fromObservations expSamples
-      rho = (push cos mu) + (push sin nu)
-      eta = push exp rho
+      rho = (fmap cos mu) + (fmap sin nu)
+      eta = fmap exp rho
 
   putStrLn $ "mean of normal samples (should be around 0):                " ++ 
                show (mean . fromObservations $ normSamples)
@@ -57,5 +57,5 @@ main = do
   let alpha = fromDensity $ density $ chiSquared 5
 
   putStrLn $ "let X ~ N(2, 1), Y ~ chisq(5).  variance of exp (tanh XY)   " ++
-               show (variance . push (exp . tanh) $ phi * alpha)
+               show (variance . fmap (exp . tanh) $ phi * alpha)
 
