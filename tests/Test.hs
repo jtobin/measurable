@@ -2,14 +2,12 @@
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Trans
 import Data.Vector (singleton)
 import Measurable
 import Numeric.SpecFunctions
 import Statistics.Distribution hiding (mean, variance)
 import Statistics.Distribution.Normal
 import Statistics.Distribution.Beta
-import Statistics.Distribution.Binomial
 import Statistics.Distribution.ChiSquared
 import System.Random.MWC
 import System.Random.MWC.Distributions
@@ -60,18 +58,18 @@ main = do
   let observedExpMeasure    = fromObservations expSamples
       observedNormalMeasure = fromObservations normSamples
 
-  putStrLn $ "X ~ N(0, 1)"
-  putStrLn $ "Y ~ empirical (observed from exponential(1))"
-  putStrLn $ "Z ~ empirical (observed from N(0, 1))"
-  putStrLn $ "W ~ ChiSquared(5)"
-  putStrLn $ ""
+  putStrLn "X ~ N(0, 1)"
+  putStrLn "Y ~ empirical (observed from exponential(1))"
+  putStrLn "Z ~ empirical (observed from N(0, 1))"
+  putStrLn "W ~ ChiSquared(5)"
+  putStrLn ""
 
   -- We can mingle our empirical measures with those created directly from
   -- densities.  We can literally just add measures together (there's a 
   -- convolution happening under the hood).
 
   let mu = normalMeasure 0 1 + observedExpMeasure
-  putStrLn $ "E(X + Y):             " ++ (show $ expectation mu)
+  putStrLn $ "E(X + Y):             " ++ show (expectation mu)
 
   -- We can create pushforward/image measures by.. pushing functions onto
   -- measures.  
@@ -79,10 +77,10 @@ main = do
   -- The pushforward operator happens to be trusty old 'fmap', (as infix, <$>).
 
   let nu = (cos <$> normalMeasure 0 1) * (sin <$> observedNormalMeasure)
-  putStrLn $ "E(cos X * sin Z):     " ++ (show $ expectation nu)
+  putStrLn $ "E(cos X * sin Z):     " ++ show (expectation nu)
 
   let eta = exp <$> nu
-  putStrLn $ "E[e^(cos X * sin Z)]: " ++ (show $ expectation eta)
+  putStrLn $ "E[e^(cos X * sin Z)]: " ++ show (expectation eta)
 
   -- At present the complexity of each Measure operation seems to *explode*, so
   -- you can't do more than a few of them without your machine locking up.  I
@@ -90,9 +88,9 @@ main = do
   -- But hey, experiments and such..
 
   let zeta = (exp . tanh) <$> (chiSqMeasure 5 * normalMeasure 0 1)
-  putStrLn $ "E[e^(tanh (X * W))]:  " ++ (show $ expectation zeta)
+  putStrLn $ "E[e^(tanh (X * W))]:  " ++ show (expectation zeta)
 
-  putStrLn $ ""
+  putStrLn ""
 
   -- We can do probability by just taking the expectation of an indicator 
   -- function, and there's a built-in cumulative distribution function.
@@ -100,12 +98,12 @@ main = do
   -- P(X < 0) for example.  It should be 0.5, but there is some error due to 
   -- quadrature.
 
-  putStrLn $ "P(X < 0):             " ++ (show $ cdf (normalMeasure 0 1) 0)
+  putStrLn $ "P(X < 0):             " ++ show (cdf (normalMeasure 0 1) 0)
 
   -- Everyone knows that for X ~ N(0, 1), P(0 < X < 1) is about 0.341..
 
   putStrLn $ "P(0 < X < 1):         " 
-    ++ (show $ expectation $ 0 `to` 1 <$> (normalMeasure 0 1))
+    ++ show (expectation $ 0 `to` 1 <$> normalMeasure 0 1)
 
   putStrLn ""
 
@@ -123,15 +121,15 @@ main = do
   let phi = betaBinomialConjugate 1 4 10
 
   putStrLn $ "E(X):                 " 
-    ++ (show $ expectation $ betaBinomialConjugate 1 4 10)
+    ++ show (expectation phi)
 
   putStrLn $ "P(X == 5):            " 
-    ++ (show $ expectation $ 5 `to` 5 <$> phi)
+    ++ show (expectation $ 5 `to` 5 <$> phi)
 
   putStrLn $ "P(1 <= X <= 5):       " 
-    ++ (show $ expectation $ 1 `to` 5 <$> phi)
+    ++ show (expectation $ 1 `to` 5 <$> phi)
 
-  putStrLn $ "var(X):               " ++ (show $ variance phi)
+  putStrLn $ "var(X):               " ++ show (variance phi)
 
   -- Lots of kinks to be worked out, but this is a cool concept.
 
