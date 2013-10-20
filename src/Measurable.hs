@@ -39,7 +39,9 @@ import Numeric.Integration.TanhSinh
 --   So really, a Measure in this sense is an expression of a particular 
 --   computational process - expectation.  We leave a callback to be
 --   plugged in - a measurable function - and from there, we can finish the 
---   computation and return a value.
+--   computation and return a value.  A measure is actually represented as a 
+--   *program* that, given a measurable function, integrates that function.  
+--   It's thus completely equivalent to the Continuation monad.
 --
 --   This is equivalent to the type that forms the Continuation monad, albeit
 --   with constant (Double) result type.  The functor and monad instances follow
