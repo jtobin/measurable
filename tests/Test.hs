@@ -3,6 +3,7 @@
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
+import Data.Vector (singleton)
 import Measurable
 import Numeric.SpecFunctions
 import Statistics.Distribution hiding (mean, variance)
@@ -13,110 +14,124 @@ import Statistics.Distribution.ChiSquared
 import System.Random.MWC
 import System.Random.MWC.Distributions
 
--- | A standard beta-binomial conjugate model.
+-- | Some workhorse densities (with respect to Lebesgue measure).
+genNormal m v = density $ normalDistr m v
+genBeta   a b = density $ betaDistr a b
+genChiSq  d   = density $ chiSquared d
+
+-- | A binomial density (with respect to counting measure).
+binom p n k
+  | n <= 0    = 0
+  | k <  0    = 0
+  | n < k     = 0
+  | otherwise = n `choose` k * p ^ k * (1 - p) ^ (n - k)
+
+-- | Measures created from densities.  Notice that the binomial measure has to
+--   be treated differently than the measures absolutely continuous WRT Lebesgue
+--   measure.
+normalMeasure m v = fromDensity $ genNormal m v
+betaMeasure   a b = fromDensity $ genBeta a b
+chiSqMeasure  d   = fromDensity $ genChiSq d
+binomMeasure  n p = fromMassFunction (binom p n . truncate) 
+                                     (fromIntegral <$> [0..n] :: [Double])
+
+-- | Sampling functions.
+generateExpSamples n l g      = replicateM n (exponential l g)
+generateNormalSamples n m v g = replicateM n (normal m v g)
+
+-- | A standard beta-binomial conjugate model.  Notice how naturally it's 
+--   expressed using do-notation!
 betaBinomialConjugate :: Double -> Double -> Int -> Measure Double
 betaBinomialConjugate a b n = do
   p <- betaMeasure a b
   binomMeasure n p
 
--- | Workhorse densities.
-standardNormal      = density $ normalDistr 0 1
-genLocationNormal m = density $ normalDistr m 1
-basicBeta a b       = density $ betaDistr a b
-
--- | A beta measure.
-betaMeasure a b     = fromDensity $ basicBeta a b
-
--- | A binomial mass function.
-binom p n k | n <= 0    = 0
-            | k <  0    = 0
-            | n < k     = 0
-            | otherwise = n `choose` k * p ^ k * (1 - p) ^ (n - k)
-
--- | Binomial measure.
-binomMeasure n p = fromMassFunction (\x -> binom p n (truncate x)) 
-                                    (map fromIntegral [0..n] :: [Double])
-
+main :: IO ()
 main = do
-  expSamples <- withSystemRandom . asGenIO $ \g -> 
-                  replicateM 100 $ exponential 1 g
+  -- Initialize our PRNG.
+  g <- initialize (singleton 42)
 
-  normSamples <- withSystemRandom . asGenIO $ \g ->
-                  replicateM 100 $ normal 0 1 g
+  -- Generate some samples (in practice we'd usually create measures directly
+  -- from samples).
+  expSamples  <- generateExpSamples 1000 1 g
+  normSamples <- generateNormalSamples 1000 0 1 g
 
-  let mu  = fromDensity standardNormal
-      nu  = fromObservations expSamples
-      rho = (cos <$> mu) + (sin <$> nu)
-      eta = exp <$> rho
+  -- Create a couple of measures from those.
+  let observedExpMeasure    = fromObservations expSamples
+      observedNormalMeasure = fromObservations normSamples
 
-  putStrLn $ "mean of normal samples (should be around 0):                " ++ 
-               show (expectation . fromObservations $ normSamples)
-  putStrLn $ "variance of normal samples (should be around 1):            " ++ 
-               show (variance . fromObservations $ normSamples)
-  putStrLn $ "let X ~ N(0, 1), Y ~ observed.  mean of exp(cos X + sin Y): " ++
-               show (expectation eta)
+  putStrLn $ "X ~ N(0, 1)"
+  putStrLn $ "Y ~ empirical (observed from exponential(1))"
+  putStrLn $ "Z ~ empirical (observed from N(0, 1))"
+  putStrLn $ "W ~ ChiSquared(5)"
+  putStrLn $ ""
 
-  -- Subtraction of measures?
+  -- We can mingle our empirical measures with those created directly from
+  -- densities.  We can literally just add measures together (there's a 
+  -- convolution happening under the hood).
 
-  let iota = mu - mu
-  
-  putStrLn $ "let X, Y be independent N(0, 1).  mean of X - Y:            " ++
-               show (expectation iota)
-  putStrLn $ "let X, Y be independent N(0, 1).  variance of X - Y:        " ++
-               show (variance iota)
+  let mu = normalMeasure 0 1 + observedExpMeasure
+  putStrLn $ "E(X + Y):             " ++ (show $ expectation mu)
 
-  -- Product of measures?  *pops out of cake* YEAH WE CAN DO THAT
+  -- We can create pushforward/image measures by.. pushing functions onto
+  -- measures.  
+  --
+  -- The pushforward operator happens to be trusty old 'fmap', (as infix, <$>).
 
-  let phi  = fromDensity $ genLocationNormal 2
-      xi   = fromDensity $ genLocationNormal 3
-      zeta = phi * xi
+  let nu = (cos <$> normalMeasure 0 1) * (sin <$> observedNormalMeasure)
+  putStrLn $ "E(cos X * sin Z):     " ++ (show $ expectation nu)
 
-  putStrLn $ "let X ~ N(2, 1), Y ~ N(3, 1). mean of XY (should be 6)      " ++
-               show (expectation zeta)
-  putStrLn $ "let X ~ N(2, 1), Y ~ N(3, 1). variance of XY (should be 14) " ++
-               show (variance zeta)
+  let eta = exp <$> nu
+  putStrLn $ "E[e^(cos X * sin Z)]: " ++ (show $ expectation eta)
 
-  let alpha = fromDensity $ density $ chiSquared 5
-      beta  = (exp . tanh) <$> (phi * alpha)
+  -- At present the complexity of each Measure operation seems to *explode*, so
+  -- you can't do more than a few of them without your machine locking up.  I
+  -- have to look into what could be done to make this reasonably efficient. 
+  -- But hey, experiments and such..
 
-  putStrLn $ "let X ~ N(2, 1), Y ~ chisq(5).  variance of exp (tanh XY)   " ++
-               show (variance beta)
+  let zeta = (exp . tanh) <$> (chiSqMeasure 5 * normalMeasure 0 1)
+  putStrLn $ "E[e^(tanh (X * W))]:  " ++ (show $ expectation zeta)
 
-  putStrLn ""
-  putStrLn "Some probability examples:"
-  putStrLn ""
+  putStrLn $ ""
 
-  putStrLn $ "let X ~ N(0, 1).  P(X < 0) (should be ~ 0.5):               " ++
-               show (cdf mu 0)
+  -- We can do probability by just taking the expectation of an indicator 
+  -- function, and there's a built-in cumulative distribution function.
+  --
+  -- P(X < 0) for example.  It should be 0.5, but there is some error due to 
+  -- quadrature.
 
-  putStrLn $ "let X ~ N(0, 1).  P(0 < X < 1) (should be ~ 0.341):         " ++
-               show (expectation $ 0 `to` 1 <$> mu)
+  putStrLn $ "P(X < 0):             " ++ (show $ cdf (normalMeasure 0 1) 0)
 
-  putStrLn $ "let X ~ N(0, 1), Y ~ observed.  P(0 < X < 0.8):             " ++
-               show (expectation $ 0 `to` 0.8 <$> (mu + nu))
+  -- Everyone knows that for X ~ N(0, 1), P(0 < X < 1) is about 0.341..
 
-  putStrLn ""
-  putStrLn "Creating from a mass function:"
-  putStrLn ""
-
-  
-  let kappa = binomMeasure 10 0.5
-
-  putStrLn $ "let X ~ binom(10, 0.5).  mean of X (should be 5):           " ++
-                show (expectation kappa)
-  putStrLn $ "let X ~ binom(10, 0.5).  variance of X (should be 2.5):     " ++
-                show (variance kappa)
+  putStrLn $ "P(0 < X < 1):         " 
+    ++ (show $ expectation $ 0 `to` 1 <$> (normalMeasure 0 1))
 
   putStrLn ""
-  putStrLn "Bayesian inference"
+
+  -- The coolest trick of all is that monadic bind is Bayesian inference.  
+  -- Getting posterior predictive expectations & probabilities is thus really
+  -- declarative.
+
+  putStrLn "X | p ~ binomial(10, p)"
+  putStrLn "p     ~ beta(1, 4)"
+
+  putStrLn ""
+  putStrLn "(integrate out p..)"
   putStrLn ""
 
-  let omega = betaBinomialConjugate 1 4 10
+  let phi = betaBinomialConjugate 1 4 10
 
-  putStrLn $ 
-    "let X | p ~ binomial(10, p), p ~ beta(1, 4).  mean of posterior pred.:\n"
-    ++ show (expectation omega)
-  putStrLn $ 
-    "let X | p ~ binomial(10, p), p ~ beta(1, 4).  variance of posterior pred:\n" 
-    ++ show (variance omega)
-  
+  putStrLn $ "E(X):                 " 
+    ++ (show $ expectation $ betaBinomialConjugate 1 4 10)
+
+  putStrLn $ "P(X == 5):            " 
+    ++ (show $ expectation $ 5 `to` 5 <$> phi)
+
+  putStrLn $ "P(1 <= X <= 5):       " 
+    ++ (show $ expectation $ 1 `to` 5 <$> phi)
+
+  putStrLn $ "var(X):               " ++ (show $ variance phi)
+
+  -- Lots of kinks to be worked out, but this is a cool concept.
+
