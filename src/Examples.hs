@@ -33,6 +33,7 @@ genNormalSamples n m t g = replicateM n $ normal m (1 / t) g
 --   tuples.
 --
 --   X | t ~ N(mu, 1/(lambda * t))
+--   t     ~ gamma(a, b)
 normalGammaMeasure 
   :: (Fractional r, PrimMonad m) 
   => Int
@@ -106,13 +107,23 @@ altNormalNormalGammaMeasure n a b mu lambda g = do
 
 main :: IO ()
 main = do
-  let nng = normalNormalGammaMeasure 100 2 6 1 0.5
-  m <- withSystemRandom . asGenIO $ \g ->
-         expectationT id $ nng g
+  let nng  = normalNormalGammaMeasure 100 2 6 1 0.5
+      anng = altNormalNormalGammaMeasure 100 2 6 1 0.5
+  m0 <- withSystemRandom . asGenIO $ \g ->
+          expectationT id $ nng g
 
-  p <- withSystemRandom . asGenIO $ \g ->
-         expectationT id $ 2 `to` 3 <$> nng g
+  m1 <- withSystemRandom . asGenIO $ \g ->
+          expectationT id $ anng g
 
-  print m
-  print p
+  p0 <- withSystemRandom . asGenIO $ \g ->
+          expectationT id $ 2 `to` 3 <$> nng g
+
+  p1 <- withSystemRandom . asGenIO $ \g ->
+          expectationT id $ 2 `to` 3 <$> anng g
+
+  print m0
+  print m1
+
+  print p0
+  print p1
 
