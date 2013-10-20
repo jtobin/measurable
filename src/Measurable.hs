@@ -41,19 +41,22 @@ import Numeric.Integration.TanhSinh
 --   plugged in - a measurable function - and from there, we can finish the 
 --   computation and return a value.  A measure is actually represented as a 
 --   *program* that, given a measurable function, integrates that function.  
---   It's thus completely equivalent to the Continuation monad.
+--   It's thus completely equivalent to the Continuation monad, albeit with
+--   a restricted result type.
 --
---   This is equivalent to the type that forms the Continuation monad, albeit
---   with constant (Double) result type.  The functor and monad instances follow
---   suit.
---
---   The strength of the Monad instance is that it allows us to do Bayesian 
---   inference.  That is, 
+--   The Functor instance provides the ability to create pushforward/image 
+--   measures.  That's handled by good ol' fmap.  The strength of the Monad 
+--   instance is that it allows us to do Bayesian inference.  That is, 
 --
 --   priorMeasure >>= likelihoodMeasure == posteriorPredictiveMeasure
 --
+--   or, using arguably more modern terminology:
+--
+--   parameterModel >>= dataModel == model
+--
 --   Ex, given 'betaMeasure a b' and 'binomMeasure n p' functions that create
---   the obvious measures, we can express a beta-binomial model like so:
+--   the obvious measures, we can express a (Bayesian) beta-binomial model like
+--   so:
 --
 --   betaBinomialConjugate :: Double -> Double -> Int -> Measure Double
 --   betaBinomialConjugate a b n = do
