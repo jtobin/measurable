@@ -15,32 +15,19 @@ data Table = Table {
 instance Ord Table where
   t1 < t2 = _people t1 < _people t2
 
-$(makeLenses ''Table)
+makeLenses ''Table
 
 -- | Mass function for a given table.  It's dependent on the state of the 
 --   restaurant via 'n' and 'newestTable'.
-tableMass :: (Fractional a, Integral b) => b -> a -> Table -> Table -> a
 tableMass n a newestTable table 
   | table^.number == newestTable^.number = a / (fromIntegral n + a)
   | otherwise = fromIntegral (table^.people) / (fromIntegral n + a)
 
 -- | A dependent measure over tables.
-tableMeasure
-  :: (Fractional r, Integral b, Applicative m, Monad m, Traversable t)
-  => b 
-  -> r
-  -> Table
-  -> t Table
-  -> MeasureT r m Table
 tableMeasure n a newestTable = 
   fromMassFunction (return . tableMass n a newestTable)
 
 -- | A probability measure over restaurants, represented by IntMaps.
-restaurantMeasure
-  :: (Fractional r, Monad m, Applicative m)
-  => r
-  -> IntMap Table
-  -> MeasureT r m (IntMap Table)
 restaurantMeasure a restaurant = do
   let numberOfCustomers   = sumOf (traverse.people) restaurant
       numberOfTables      = lengthOf traverse restaurant
@@ -59,11 +46,6 @@ restaurantMeasure a restaurant = do
 --
 --   This implementation is dismally inefficient as-is, but appears to be
 --   correct.  I think I need to look at doing memoization under the hood.
-chineseRestaurantProcess
-  :: (Enum a, Eq a, Fractional r, Monad m, Applicative m, Num a)
-  => a
-  -> r
-  -> MeasureT r m (IntMap Table)
 chineseRestaurantProcess n a = go n IntMap.empty
   where go 0 restaurant = return restaurant
         go j restaurant = restaurantMeasure a restaurant >>= go (pred j)

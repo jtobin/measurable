@@ -11,7 +11,6 @@ import Data.List
 import Data.Monoid
 import qualified Data.Set as Set
 import Data.Traversable hiding (mapM)
-import Numeric.Integration.TanhSinh
 
 type MeasureT r m a = ContT r m a
 
