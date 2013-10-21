@@ -13,7 +13,7 @@ import System.Random.MWC
 import System.Random.MWC.Distributions
 
 genGammaSamples 
-  :: PrimMonad m 
+  :: (Applicative m, PrimMonad m)
   => Int
   -> Double
   -> Double
@@ -22,7 +22,7 @@ genGammaSamples
 genGammaSamples n a b g  = replicateM n $ gamma a b g
 
 genNormalSamples
-  :: PrimMonad m
+  :: (Applicative m, PrimMonad m)
   => Int
   -> Double
   -> Double
@@ -37,7 +37,7 @@ genNormalSamples n m t g = replicateM n $ normal m (1 / t) g
 --   t      ~ gamma(a, b)
 --   (X, t) ~ NormalGamma(mu, lambda, a, b)
 normalGammaMeasure 
-  :: (Fractional r, PrimMonad m) 
+  :: (Fractional r, Applicative m, PrimMonad m) 
   => Int
   -> Double
   -> Double
@@ -58,7 +58,7 @@ normalGammaMeasure n a b mu lambda g = do
 --   various return types.  Here we have a probability distribution over hash 
 --   maps.
 altNormalGammaMeasure 
-  :: (Fractional r, PrimMonad m) 
+  :: (Fractional r, Applicative m, PrimMonad m) 
   => Int
   -> Double
   -> Double
@@ -76,7 +76,7 @@ altNormalGammaMeasure n a b mu lambda g = do
   return $ HashMap.fromList [("location", location), ("precision", precision)]
 
 normalNormalGammaMeasure 
-  :: (Fractional r, PrimMonad m) 
+  :: (Fractional r, Applicative m, PrimMonad m) 
   => Int
   -> Double
   -> Double
@@ -90,7 +90,7 @@ normalNormalGammaMeasure n a b mu lambda g = do
   fromObservations normalSamples
 
 altNormalNormalGammaMeasure
-  :: (Fractional r, PrimMonad m) 
+  :: (Fractional r, Applicative m, PrimMonad m) 
   => Int
   -> Double
   -> Double
