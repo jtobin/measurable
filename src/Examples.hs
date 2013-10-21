@@ -47,10 +47,10 @@ normalGammaMeasure
   -> MeasureT r m (Double, Double)
 normalGammaMeasure n a b mu lambda g = do
   gammaSamples <- lift $ genGammaSamples n a b g
-  precision    <- fromObservationsT gammaSamples
+  precision    <- fromObservations gammaSamples
 
   normalSamples <- lift $ genNormalSamples n mu (lambda * precision) g
-  location      <- fromObservationsT normalSamples
+  location      <- fromObservations normalSamples
 
   return (location, precision)
 
@@ -68,10 +68,10 @@ altNormalGammaMeasure
   -> MeasureT r m (HashMap String Double)
 altNormalGammaMeasure n a b mu lambda g = do
   gammaSamples <- lift $ genGammaSamples n a b g
-  precision    <- fromObservationsT gammaSamples
+  precision    <- fromObservations gammaSamples
 
   normalSamples <- lift $ genNormalSamples n mu (lambda * precision) g
-  location      <- fromObservationsT normalSamples
+  location      <- fromObservations normalSamples
 
   return $ HashMap.fromList [("location", location), ("precision", precision)]
 
@@ -87,7 +87,7 @@ normalNormalGammaMeasure
 normalNormalGammaMeasure n a b mu lambda g = do
   (m, t) <- normalGammaMeasure n a b mu lambda g
   normalSamples <- lift $ genNormalSamples n m t g
-  fromObservationsT normalSamples
+  fromObservations normalSamples
 
 altNormalNormalGammaMeasure
   :: (Fractional r, PrimMonad m) 
@@ -105,7 +105,7 @@ altNormalNormalGammaMeasure n a b mu lambda g = do
       t = fromMaybe (error "no precision!") $ 
             HashMap.lookup "precision" parameterHash
   normalSamples <- lift $ genNormalSamples n m t g
-  fromObservationsT normalSamples
+  fromObservations normalSamples
 
 -- | A binomial density (with respect to counting measure).
 binom :: Double -> Int -> Int -> Double
@@ -121,7 +121,7 @@ binomMeasure
   => Int
   -> Double
   -> MeasureT Double m Int
-binomMeasure n p = fromMassFunctionT (return . binom p n) [0..n]
+binomMeasure n p = fromMassFunction (return . binom p n) [0..n]
 
 -- | Note that we can handle all sorts of things that are densities w/respect
 --   to counting measure.  They don't necessarily have to have integral 
@@ -139,28 +139,34 @@ categoricalOnGroupMeasure
   :: (Applicative m, Monad m, Fractional a)
   => MeasureT a m Group
 categoricalOnGroupMeasure = 
-  fromMassFunctionT (return . categoricalOnGroupDensity) [A, B, C]
+  fromMassFunction (return . categoricalOnGroupDensity) [A, B, C]
 
 main :: IO ()
 main = do
   let nng  = normalNormalGammaMeasure 30 2 6 1 0.5
       anng = altNormalNormalGammaMeasure 30 2 6 1 0.5
   m0 <- withSystemRandom . asGenIO $ \g ->
-          expectationT id $ nng g
+          expectation id $ nng g
 
   m1 <- withSystemRandom . asGenIO $ \g ->
-          expectationT id $ anng g
+          expectation id $ anng g
 
   p0 <- withSystemRandom . asGenIO $ \g ->
-          expectationT id $ 2 `to` 3 <$> nng g
+          expectation id $ 2 `to` 3 <$> nng g
 
   p1 <- withSystemRandom . asGenIO $ \g ->
-          expectationT id $ 2 `to` 3 <$> anng g
+          expectation id $ 2 `to` 3 <$> anng g
 
-  binomialMean <- expectationT fromIntegral (binomMeasure 10 0.5)
+  binomialMean <- expectation fromIntegral (binomMeasure 10 0.5)
 
-  groupProbBC <- expectationT id
+  groupProbBC <- expectation id
                    (containing [B, C] <$> categoricalOnGroupMeasure)
+
+  let groupsObserved = [A, A, A, B, A, B, B, A, C, B, B, A, A, B, C, A, A]
+      categoricalFromObservationsMeasure = fromObservations groupsObserved
+
+  groupsObservedProbBC <- expectation id
+    (containing [B, C] <$> categoricalFromObservationsMeasure)
 
   print m0
   print m1
@@ -171,4 +177,5 @@ main = do
   print binomialMean
 
   print groupProbBC
+  print groupsObservedProbBC
 

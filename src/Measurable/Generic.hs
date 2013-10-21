@@ -19,8 +19,8 @@ measureT :: MeasureT r m a -> (a -> m r) -> m r
 measureT = runContT
 
 -- | Create a measure from observations (samples) from some distribution.
-fromObservationsT :: (Monad m, Fractional r) => [a] -> ContT r m a
-fromObservationsT xs = ContT (`weightedAverageM` xs)
+fromObservations :: (Monad m, Fractional r) => [a] -> MeasureT r m a
+fromObservations xs = ContT (`weightedAverageM` xs)
 
 -- A mass function is close to universal when dealing with discrete objects, but
 -- the problem is that we need to create it over the entire support.  In terms 
@@ -29,12 +29,12 @@ fromObservationsT xs = ContT (`weightedAverageM` xs)
 --
 -- Maybe we can use something like an 'observed support'.  You can probably get
 -- inspiration from how the Dirichlet process is handled in practice.
-fromMassFunctionT
+fromMassFunction
   :: (Num r, Applicative f)
   => (a -> f r)
   -> [a]
-  -> ContT r f a
-fromMassFunctionT p support = ContT $ \f ->
+  -> MeasureT r f a
+fromMassFunction p support = ContT $ \f ->
   fmap sum . traverse (liftA2 (liftA2 (*)) f p) $ support
 
 -- | Expectation is obtained by integrating against the identity function.  We
@@ -43,19 +43,19 @@ fromMassFunctionT p support = ContT $ \f ->
 --
 --   NOTE should we have this transformation handled elsewhere?  I.e. make fmap
 --        responsible for transforming the type?
-expectationT :: Monad m => (a -> r) -> MeasureT r m a -> m r
-expectationT f = (`measureT` (return . f))
+expectation :: Monad m => (a -> r) -> MeasureT r m a -> m r
+expectation f = (`measureT` (return . f))
 
 -- | The volume is obtained by integrating against a constant.  This is '1' for
 --   any probability measure.
-volumeT :: (Num r, Monad m) => MeasureT r m r -> m r
-volumeT mu = measureT mu (return . const 1)
+volume :: (Num r, Monad m) => MeasureT r m r -> m r
+volume mu = measureT mu (return . const 1)
 
 -- | Cumulative distribution function.  Only makes sense for Fractional/Ord
 --   inputs.  Lots of potentially interesting cases where this isn't necessarily
 --   true.
-cdfT :: (Fractional r, Ord r, Monad m) => MeasureT r m r -> r -> m r
-cdfT mu x = expectationT id $ (negativeInfinity `to` x) <$> mu
+cdf :: (Fractional r, Ord r, Monad m) => MeasureT r m r -> r -> m r
+cdf mu x = expectation id $ (negativeInfinity `to` x) <$> mu
 
 -- | Integrate from a to b.
 to :: (Num a, Ord a) => a -> a -> a -> a
