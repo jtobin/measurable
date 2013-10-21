@@ -1,11 +1,18 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 import Control.Applicative
+import Control.Arrow
 import Control.Error
+import Control.Lens hiding (to)
 import Control.Monad
 import Control.Monad.Primitive
 import Control.Monad.Trans
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
+import Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as IntMap
 import Data.Vector (singleton)
+import qualified Data.Traversable as Traversable
 import Measurable.Generic
 import Numeric.SpecFunctions
 import Statistics.Distribution
@@ -167,7 +174,7 @@ gaussianMixtureModel n observed g = do
 
   fromObservations samples
 
--- | A bizarre measure.
+-- | A bizarre random measure.
 weirdMeasure
   :: Fractional r
   => [Group]
@@ -225,4 +232,12 @@ main = do
   print groupsObservedProbBC
 
   print mixtureModelMean
+
+  weirdProbabilityOfTrue <- expectation id $ 
+    containing [True] <$> weirdMeasure [B, B, A, C, A, C, C, A, B, A] []
+
+  print weirdProbabilityOfTrue
+
+
+
 
