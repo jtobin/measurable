@@ -136,10 +136,36 @@ categoricalOnGroupDensity g
 
 -- | Here's a measure defined on the Group data type. 
 categoricalOnGroupMeasure 
-  :: (Applicative m, Monad m, Fractional a)
-  => MeasureT a m Group
+  :: (Applicative m, Monad m, Fractional r)
+  => MeasureT r m Group
 categoricalOnGroupMeasure = 
   fromMassFunction (return . categoricalOnGroupDensity) [A, B, C]
+
+-- | A gaussian mixture model, with mixing probabilities based on observed 
+--   groups.  Again, note that Group is not an instance of Num!   We can compose
+--   measures of various types, so long as our 'end type' is Fractional.
+--
+--   X | S ~ case S of
+--             A -> observed from N(-2, 1)
+--             B -> observed from N( 0, 1)
+--             C -> observed from N( 1, 1)
+--
+--   S     ~ observed from categorical
+--
+gaussianMixtureModel
+  :: (Fractional r, Applicative m, PrimMonad m)
+  => Int
+  -> [Group] 
+  -> Gen (PrimState m)
+  -> MeasureT r m Double
+gaussianMixtureModel n observed g = do
+  s       <- fromObservations observed
+  samples <- case s of
+               A -> lift $ genNormalSamples n (-2) 1 g
+               B -> lift $ genNormalSamples n 0 1 g
+               C -> lift $ genNormalSamples n 1 1 g
+
+  fromObservations samples
 
 main :: IO ()
 main = do
@@ -168,6 +194,9 @@ main = do
   groupsObservedProbBC <- expectation id
     (containing [B, C] <$> categoricalFromObservationsMeasure)
 
+  mixtureModelMean <- withSystemRandom . asGenIO $ \g -> 
+    expectation id (gaussianMixtureModel 30 groupsObserved g)
+
   print m0
   print m1
 
@@ -178,4 +207,6 @@ main = do
 
   print groupProbBC
   print groupsObservedProbBC
+
+  print mixtureModelMean
 
