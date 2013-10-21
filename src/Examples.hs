@@ -7,6 +7,7 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 import Data.Vector (singleton)
 import Measurable.Generic
+import Numeric.SpecFunctions
 import Statistics.Distribution
 import System.Random.MWC
 import System.Random.MWC.Distributions
@@ -32,8 +33,9 @@ genNormalSamples n m t g = replicateM n $ normal m (1 / t) g
 -- | Normal-gamma model.  Note the resulting type is a probability measure on
 --   tuples.
 --
---   X | t ~ N(mu, 1/(lambda * t))
---   t     ~ gamma(a, b)
+--   X | t  ~ N(mu, 1/(lambda * t))
+--   t      ~ gamma(a, b)
+--   (X, t) ~ NormalGamma(mu, lambda, a, b)
 normalGammaMeasure 
   :: (Fractional r, PrimMonad m) 
   => Int
@@ -105,10 +107,44 @@ altNormalNormalGammaMeasure n a b mu lambda g = do
   normalSamples <- lift $ genNormalSamples n m t g
   fromObservationsT normalSamples
 
+-- | A binomial density (with respect to counting measure).
+binom :: Double -> Int -> Int -> Double
+binom p n k
+ | n <= 0    = 0
+ | k <  0    = 0
+ | n < k     = 0
+ | otherwise = n `choose` k * p ^ k * (1 - p) ^ (n - k)
+
+-- | Generate a binomial measure from its mass function.
+binomMeasure 
+  :: (Applicative m, Monad m)
+  => Int
+  -> Double
+  -> MeasureT Double m Int
+binomMeasure n p = fromMassFunctionT (return . binom p n) [0..n]
+
+-- | Note that we can handle all sorts of things that are densities w/respect
+--   to counting measure.  They don't necessarily have to have integral 
+--   domains (or even have Ordered domains, though that's the case here).
+data Group = A | B | C deriving (Enum, Eq, Ord, Show)
+
+categoricalOnGroupDensity :: Fractional a => Group -> a
+categoricalOnGroupDensity g
+  | g == A = 0.3
+  | g == B = 0.6
+  | g == C = 0.1
+
+-- | Here's a measure defined on the Group data type. 
+categoricalOnGroupMeasure 
+  :: (Applicative m, Monad m, Fractional a)
+  => MeasureT a m Group
+categoricalOnGroupMeasure = 
+  fromMassFunctionT (return . categoricalOnGroupDensity) [A, B, C]
+
 main :: IO ()
 main = do
-  let nng  = normalNormalGammaMeasure 100 2 6 1 0.5
-      anng = altNormalNormalGammaMeasure 100 2 6 1 0.5
+  let nng  = normalNormalGammaMeasure 30 2 6 1 0.5
+      anng = altNormalNormalGammaMeasure 30 2 6 1 0.5
   m0 <- withSystemRandom . asGenIO $ \g ->
           expectationT id $ nng g
 
@@ -121,9 +157,18 @@ main = do
   p1 <- withSystemRandom . asGenIO $ \g ->
           expectationT id $ 2 `to` 3 <$> anng g
 
+  binomialMean <- expectationT fromIntegral (binomMeasure 10 0.5)
+
+  groupProbBC <- expectationT id
+                   (containing [B, C] <$> categoricalOnGroupMeasure)
+
   print m0
   print m1
 
   print p0
   print p1
+
+  print binomialMean
+
+  print groupProbBC
 
