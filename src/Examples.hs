@@ -123,7 +123,7 @@ binomMeasure
   -> MeasureT Double m Int
 binomMeasure n p = fromMassFunction (return . binom p n) [0..n]
 
--- | Note that we can handle all sorts of things that are densities w/respect
+-- | Note that we can handle all sorts of things that have densities w/respect
 --   to counting measure.  They don't necessarily have to have integral 
 --   domains (or even have Ordered domains, though that's the case here).
 data Group = A | B | C deriving (Enum, Eq, Ord, Show)
@@ -166,6 +166,22 @@ gaussianMixtureModel n observed g = do
                C -> lift $ genNormalSamples n 1 1 g
 
   fromObservations samples
+
+-- | A bizarre measure.
+weirdMeasure
+  :: Fractional r
+  => [Group]
+  -> [Bool]
+  -> MeasureT r IO Bool
+weirdMeasure [] acc     = fromObservations acc
+weirdMeasure (m:ms) acc
+  | m == A = do
+      j <- lift $ withSystemRandom . asGenIO $ uniform
+      k <- lift $ withSystemRandom . asGenIO $ uniform
+      if   j
+      then weirdMeasure ms (k : acc)
+      else weirdMeasure ms acc
+  | otherwise = weirdMeasure ms acc
 
 main :: IO ()
 main = do
