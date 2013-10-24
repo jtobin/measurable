@@ -3,7 +3,7 @@
 import Control.Applicative
 import Control.Monad
 import Data.Vector (singleton)
-import Measurable
+import Measurable.Core
 import Numeric.SpecFunctions
 import Statistics.Distribution hiding (mean, variance)
 import Statistics.Distribution.Normal
@@ -27,11 +27,10 @@ binom p n k
 -- | Measures created from densities.  Notice that the binomial measure has to
 --   be treated differently than the measures absolutely continuous WRT Lebesgue
 --   measure.
-normalMeasure m v = fromDensity $ genNormal m v
-betaMeasure   a b = fromDensity $ genBeta a b
-chiSqMeasure  d   = fromDensity $ genChiSq d
-binomMeasure  n p = fromMassFunction (binom p n . truncate) 
-                                     (fromIntegral <$> [0..n] :: [Double])
+normalMeasure m v = fromDensityLebesgue $ genNormal m v
+betaMeasure   a b = fromDensityLebesgue $ genBeta a b
+chiSqMeasure  d   = fromDensityLebesgue $ genChiSq d
+binomMeasure  n p = fromDensityCounting (binom p n) [0..n]
 
 -- | Sampling functions.
 generateExpSamples n l g      = replicateM n (exponential l g)
@@ -39,7 +38,7 @@ generateNormalSamples n m v g = replicateM n (normal m v g)
 
 -- | A standard beta-binomial conjugate model.  Notice how naturally it's 
 --   expressed using do-notation!
-betaBinomialConjugate :: Double -> Double -> Int -> Measure Double
+betaBinomialConjugate :: Double -> Double -> Int -> Measure Double Int
 betaBinomialConjugate a b n = do
   p <- betaMeasure a b
   binomMeasure n p
@@ -114,13 +113,9 @@ main = do
   putStrLn "X | p ~ binomial(10, p)"
   putStrLn "p     ~ beta(1, 4)"
 
-  putStrLn ""
-  putStrLn "(integrate out p..)"
-  putStrLn ""
+  let phi = fromIntegral <$> betaBinomialConjugate 1 4 10
 
-  let phi = betaBinomialConjugate 1 4 10
-
-  putStrLn $ "E(X):                 " 
+  putStrLn $ "E(X) (unconditional): " 
     ++ show (expectation phi)
 
   putStrLn $ "P(X == 5):            " 

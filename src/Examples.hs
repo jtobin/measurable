@@ -13,12 +13,35 @@ import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
 import Data.Vector (singleton)
 import qualified Data.Traversable as Traversable
-import Measurable.Generic
+import Measurable.Core
 import Numeric.SpecFunctions
 import Statistics.Distribution
+import Statistics.Distribution.Normal
+import Statistics.Distribution.Beta
+import Statistics.Distribution.ChiSquared
 import System.Random.MWC
 import System.Random.MWC.Distributions
 
+-- | Some workhorse densities (with respect to Lebesgue measure).
+genNormal m v = density $ normalDistr m v
+genBeta   a b = density $ betaDistr a b
+genChiSq  d   = density $ chiSquared d
+
+-- | Measures created from densities.  Notice that the binomial measure has to
+--   be treated differently than the measures absolutely continuous WRT Lebesgue
+--   measure.
+normalMeasure m v = fromDensityLebesgue $ genNormal m v
+betaMeasure   a b = fromDensityLebesgue $ genBeta a b
+chiSqMeasure  d   = fromDensityLebesgue $ genChiSq d
+
+-- | A standard beta-binomial conjugate model.  Notice how naturally it's 
+--   expressed using do-notation!
+betaBinomialConjugate :: Double -> Double -> Int -> Measure Double Int
+betaBinomialConjugate a b n = do
+  p <- betaMeasure a b
+  binomMeasure n p
+
+-- | Observe a gamma distribution.
 genGammaSamples 
   :: (Applicative m, PrimMonad m)
   => Int
@@ -28,6 +51,7 @@ genGammaSamples
   -> m [Double]
 genGammaSamples n a b g  = replicateM n $ gamma a b g
 
+-- | Observe a normal distributions.
 genNormalSamples
   :: (Applicative m, PrimMonad m)
   => Int
@@ -54,10 +78,10 @@ normalGammaMeasure
   -> MeasureT r m (Double, Double)
 normalGammaMeasure n a b mu lambda g = do
   gammaSamples <- lift $ genGammaSamples n a b g
-  precision    <- fromObservations gammaSamples
+  precision    <- fromObservationsT gammaSamples
 
   normalSamples <- lift $ genNormalSamples n mu (lambda * precision) g
-  location      <- fromObservations normalSamples
+  location      <- fromObservationsT normalSamples
 
   return (location, precision)
 
@@ -75,13 +99,14 @@ altNormalGammaMeasure
   -> MeasureT r m (HashMap String Double)
 altNormalGammaMeasure n a b mu lambda g = do
   gammaSamples <- lift $ genGammaSamples n a b g
-  precision    <- fromObservations gammaSamples
+  precision    <- fromObservationsT gammaSamples
 
   normalSamples <- lift $ genNormalSamples n mu (lambda * precision) g
-  location      <- fromObservations normalSamples
+  location      <- fromObservationsT normalSamples
 
   return $ HashMap.fromList [("location", location), ("precision", precision)]
 
+-- | A normal-normal gamma conjugate model
 normalNormalGammaMeasure 
   :: (Fractional r, Applicative m, PrimMonad m) 
   => Int
@@ -94,8 +119,9 @@ normalNormalGammaMeasure
 normalNormalGammaMeasure n a b mu lambda g = do
   (m, t) <- normalGammaMeasure n a b mu lambda g
   normalSamples <- lift $ genNormalSamples n m t g
-  fromObservations normalSamples
+  fromObservationsT normalSamples
 
+-- | Alternate normal-normal gamma conjugate model.
 altNormalNormalGammaMeasure
   :: (Fractional r, Applicative m, PrimMonad m) 
   => Int
@@ -112,9 +138,9 @@ altNormalNormalGammaMeasure n a b mu lambda g = do
       t = fromMaybe (error "no precision!") $ 
             HashMap.lookup "precision" parameterHash
   normalSamples <- lift $ genNormalSamples n m t g
-  fromObservations normalSamples
+  fromObservationsT normalSamples
 
--- | A binomial density (with respect to counting measure).
+-- | The binomial density.
 binom :: Double -> Int -> Int -> Double
 binom p n k
  | n <= 0    = 0
@@ -122,19 +148,21 @@ binom p n k
  | n < k     = 0
  | otherwise = n `choose` k * p ^ k * (1 - p) ^ (n - k)
 
--- | Generate a binomial measure from its mass function.
+-- | Generate a measure from the binomial density.
 binomMeasure 
   :: (Applicative m, Monad m)
   => Int
   -> Double
   -> MeasureT Double m Int
-binomMeasure n p = fromMassFunction (return . binom p n) [0..n]
+binomMeasure n p = fromDensityCountingT (binom p n) [0..n]
 
 -- | Note that we can handle all sorts of things that have densities w/respect
---   to counting measure.  They don't necessarily have to have integral 
---   domains (or even have Ordered domains, though that's the case here).
+--   to counting measure.  They don't necessarily have to have domains that 
+--   are instances of Num (or even have Ordered domains, though that's the case
+--   here).
 data Group = A | B | C deriving (Enum, Eq, Ord, Show)
 
+-- | Density of a categorical measure.
 categoricalOnGroupDensity :: Fractional a => Group -> a
 categoricalOnGroupDensity g
   | g == A = 0.3
@@ -146,7 +174,7 @@ categoricalOnGroupMeasure
   :: (Applicative m, Monad m, Fractional r)
   => MeasureT r m Group
 categoricalOnGroupMeasure = 
-  fromMassFunction (return . categoricalOnGroupDensity) [A, B, C]
+  fromDensityCountingT categoricalOnGroupDensity [A, B, C]
 
 -- | A gaussian mixture model, with mixing probabilities based on observed 
 --   groups.  Again, note that Group is not an instance of Num!   We can compose
@@ -166,78 +194,11 @@ gaussianMixtureModel
   -> Gen (PrimState m)
   -> MeasureT r m Double
 gaussianMixtureModel n observed g = do
-  s       <- fromObservations observed
+  s       <- fromObservationsT observed
   samples <- case s of
                A -> lift $ genNormalSamples n (-2) 1 g
                B -> lift $ genNormalSamples n 0 1 g
                C -> lift $ genNormalSamples n 1 1 g
 
-  fromObservations samples
-
--- | A bizarre random measure.
-weirdMeasure
-  :: Fractional r
-  => [Group]
-  -> [Bool]
-  -> MeasureT r IO Bool
-weirdMeasure [] acc     = fromObservations acc
-weirdMeasure (m:ms) acc
-  | m == A = do
-      j <- lift $ withSystemRandom . asGenIO $ uniform
-      k <- lift $ withSystemRandom . asGenIO $ uniform
-      if   j
-      then weirdMeasure ms (k : acc)
-      else weirdMeasure ms acc
-  | otherwise = weirdMeasure ms acc
-
-main :: IO ()
-main = do
-  let nng  = normalNormalGammaMeasure 30 2 6 1 0.5
-      anng = altNormalNormalGammaMeasure 30 2 6 1 0.5
-  m0 <- withSystemRandom . asGenIO $ \g ->
-          expectation id $ nng g
-
-  m1 <- withSystemRandom . asGenIO $ \g ->
-          expectation id $ anng g
-
-  p0 <- withSystemRandom . asGenIO $ \g ->
-          expectation id $ 2 `to` 3 <$> nng g
-
-  p1 <- withSystemRandom . asGenIO $ \g ->
-          expectation id $ 2 `to` 3 <$> anng g
-
-  binomialMean <- expectation fromIntegral (binomMeasure 10 0.5)
-
-  groupProbBC <- expectation id
-                   (containing [B, C] <$> categoricalOnGroupMeasure)
-
-  let groupsObserved = [A, A, A, B, A, B, B, A, C, B, B, A, A, B, C, A, A]
-      categoricalFromObservationsMeasure = fromObservations groupsObserved
-
-  groupsObservedProbBC <- expectation id
-    (containing [B, C] <$> categoricalFromObservationsMeasure)
-
-  mixtureModelMean <- withSystemRandom . asGenIO $ \g -> 
-    expectation id (gaussianMixtureModel 30 groupsObserved g)
-
-  print m0
-  print m1
-
-  print p0
-  print p1
-
-  print binomialMean
-
-  print groupProbBC
-  print groupsObservedProbBC
-
-  print mixtureModelMean
-
-  weirdProbabilityOfTrue <- expectation id $ 
-    containing [True] <$> weirdMeasure [B, B, A, C, A, C, C, A, B, A] []
-
-  print weirdProbabilityOfTrue
-
-
-
+  fromObservationsT samples
 
