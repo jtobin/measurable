@@ -34,6 +34,12 @@ normalMeasure m v = fromDensityLebesgue $ genNormal m v
 betaMeasure   a b = fromDensityLebesgue $ genBeta a b
 chiSqMeasure  d   = fromDensityLebesgue $ genChiSq d
 
+-- | And a measure represented directly over a sampler.
+altBetaMeasure epochs a b g = do
+  bs <- lift $ replicateM epochs (genContVar (betaDistr a b) g)
+  fromObservationsT bs
+
+
 -- | A standard beta-binomial conjugate model.  Notice how naturally it's 
 --   expressed using do-notation!
 betaBinomialConjugate :: Double -> Double -> Int -> Measure Double Int

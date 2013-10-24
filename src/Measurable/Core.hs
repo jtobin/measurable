@@ -12,16 +12,16 @@ import qualified Data.Set as Set
 import Data.Traversable hiding (mapM)
 import Numeric.Integration.TanhSinh
 
--- | A measure is represented as a continuation.
+-- | A integrate is represented as a continuation.
 type Measure r a = Cont r a
 type MeasureT r m a = ContT r m a
 
--- | A more measure-y alias for runCont.
-measure :: Measure r a -> (a -> r) -> r
-measure = runCont
+-- | A more appropriate version of runCont.
+integrate :: (a -> r) -> Measure r a -> r
+integrate = flip runCont
 
-measureT :: MeasureT r m a -> (a -> m r) -> m r
-measureT = runContT
+integrateT :: Monad m => (a -> r) -> MeasureT r m a -> m r
+integrateT f = (`runContT` (return . f))
 
 -- | Things like convolution are trivially expressed by lifted arithmetic 
 --   operators.
@@ -31,9 +31,9 @@ instance (Monad m, Num a) => Num (ContT r m a) where
   (*)         = liftA2 (*)
   abs         = id
   signum      = error "signum: not supported for Measures"
-  fromInteger = error "fromInteger: not supported for measures"
+  fromInteger = error "fromInteger: not supported for integrates"
 
--- | Create a measure from a density w/respect to counting measure.
+-- | Create a integrate from a density w/respect to counting integrate.
 fromDensityCounting
   :: (Num r, Functor f, Foldable f)
   => (a -> r)
@@ -50,7 +50,7 @@ fromDensityCountingT
 fromDensityCountingT p support = ContT $ \f ->
   fmap Foldable.sum . traverse (liftA2 (liftA2 (*)) f (return . p)) $ support
 
--- | Create a measure from a density w/respect to Lebesgue measure.
+-- | Create a integrate from a density w/respect to Lebesgue integrate.
 --
 --   NOTE The quality of this implementation depends entirely on the underlying
 --        quadrature routine.  As we're presently using the 
@@ -63,7 +63,7 @@ fromDensityLebesgue :: (Double -> Double) -> Measure Double Double
 fromDensityLebesgue d = cont $ \f -> quadratureTanhSinh $ liftA2 (*) f d
   where quadratureTanhSinh = result . last . everywhere trap
 
--- | Create a measure from observations sampled from some distribution.
+-- | Create a integrate from observations sampled from some distribution.
 fromObservations
   :: (Functor f, Foldable f, Fractional r)
   => f a
@@ -76,14 +76,6 @@ fromObservationsT
   -> MeasureT r m a
 fromObservationsT = ContT . flip weightedAverageM
 
--- | Integration of a function against a measure is just running a 
---   continuation.
-integrate :: (a -> r) -> Measure r a -> r
-integrate = flip measure
-
-integrateT :: Monad m => (a -> r) -> MeasureT r m a -> m r
-integrateT f = (`measureT` (return . f))
-
 -- | Expectation is integration against the identity function.
 expectation :: Measure r r -> r
 expectation = integrate id 
@@ -93,14 +85,13 @@ expectationT = integrateT id
 
 -- | The variance is obtained by integrating against the usual function.
 variance :: Num r => Measure r r -> r
-variance mu = measure mu (^ 2) - expectation mu ^ 2
+variance mu = integrate (^ 2) mu - expectation mu ^ 2
 
 varianceT :: (Monad m, Num r) => MeasureT r m r -> m r
-varianceT mu = liftM2 (-) (measureT mu (return . (^ 2))) 
-                          (liftM (^ 2) (expectationT mu))
+varianceT mu = liftM2 (-) (integrateT (^ 2) mu) (liftM (^ 2) (expectationT mu))
 
--- | The measure of the underlying space.  This is trivially 1 for any 
---   probability measure.
+-- | The integrate of the underlying space.  This is trivially 1 for any 
+--   probability integrate.
 volume :: Num r => Measure r r -> r
 volume = integrate (const 1)
 
