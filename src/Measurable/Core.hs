@@ -31,9 +31,9 @@ instance (Monad m, Num a) => Num (ContT r m a) where
   (*)         = liftA2 (*)
   abs         = id
   signum      = error "signum: not supported for Measures"
-  fromInteger = error "fromInteger: not supported for integrates"
+  fromInteger = error "fromInteger: not supported for Measures"
 
--- | Create a integrate from a density w/respect to counting integrate.
+-- | Create a measure from a density w/respect to counting measure.
 fromDensityCounting
   :: (Num r, Functor f, Foldable f)
   => (a -> r)
@@ -50,7 +50,7 @@ fromDensityCountingT
 fromDensityCountingT p support = ContT $ \f ->
   fmap Foldable.sum . traverse (liftA2 (liftA2 (*)) f (return . p)) $ support
 
--- | Create a integrate from a density w/respect to Lebesgue integrate.
+-- | Create a measure from a density w/respect to Lebesgue measure.
 --
 --   NOTE The quality of this implementation depends entirely on the underlying
 --        quadrature routine.  As we're presently using the 
@@ -63,7 +63,7 @@ fromDensityLebesgue :: (Double -> Double) -> Measure Double Double
 fromDensityLebesgue d = cont $ \f -> quadratureTanhSinh $ liftA2 (*) f d
   where quadratureTanhSinh = result . last . everywhere trap
 
--- | Create a integrate from observations sampled from some distribution.
+-- | Create a measure from observations sampled from some distribution.
 fromObservations
   :: (Functor f, Foldable f, Fractional r)
   => f a
@@ -90,8 +90,8 @@ variance mu = integrate (^ 2) mu - expectation mu ^ 2
 varianceT :: (Monad m, Num r) => MeasureT r m r -> m r
 varianceT mu = liftM2 (-) (integrateT (^ 2) mu) (liftM (^ 2) (expectationT mu))
 
--- | The integrate of the underlying space.  This is trivially 1 for any 
---   probability integrate.
+-- | The measure applied to the underlying space.  This is trivially 1 for any 
+--   probability measure.
 volume :: Num r => Measure r r -> r
 volume = integrate (const 1)
 
