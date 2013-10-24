@@ -12,7 +12,7 @@ import qualified Data.Set as Set
 import Data.Traversable hiding (mapM)
 import Numeric.Integration.TanhSinh
 
--- | A integrate is represented as a continuation.
+-- | A measure is represented as a continuation.
 type Measure r a = Cont r a
 type MeasureT r m a = ContT r m a
 
