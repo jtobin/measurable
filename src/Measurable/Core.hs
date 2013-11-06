@@ -4,6 +4,7 @@ module Measurable.Core where
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Primitive
 import Control.Monad.Trans.Cont
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Foldable
@@ -11,10 +12,16 @@ import Data.Monoid
 import qualified Data.Set as Set
 import Data.Traversable hiding (mapM)
 import Numeric.Integration.TanhSinh
+import System.Random.MWC
+import System.Random.Represent
 
--- | A measure is represented as a continuation.
+-- | A measure is represented as a continuation.  Strictly it should have a 
+--   double return type, but the polymorphism doesn't seem to hurt in practice.
 type Measure r a = Cont r a
 type MeasureT r m a = ContT r m a
+
+-- | A model is a proper measure wrapped around a sampling monad.
+type Model a = MeasureT Double IO a
 
 -- | A more appropriate version of runCont.
 integrate :: (a -> r) -> Measure r a -> r
@@ -57,11 +64,11 @@ fromDensityCountingT p support = ContT $ \f ->
 --        Numeric.Integration.TanhSinh module, the types are also constricted 
 --        to Doubles.
 --
---        This is included moreso for interest's sake, and doesn't produce 
---        particularly accurate results.
+--        This is included moreso for interest's sake and isn't particularly
+--        accurate.
 fromDensityLebesgue :: (Double -> Double) -> Measure Double Double
 fromDensityLebesgue d = cont $ \f -> quadratureTanhSinh $ liftA2 (*) f d
-  where quadratureTanhSinh = result . last . everywhere trap
+  where quadratureTanhSinh = roundTo 2 . result . last . everywhere trap
 
 -- | Create a measure from observations sampled from some distribution.
 fromObservations
@@ -75,6 +82,15 @@ fromObservationsT
   => f a
   -> MeasureT r m a
 fromObservationsT = ContT . flip weightedAverageM
+
+-- | Create an 'approximating measure' from observations.
+fromObservationsApprox
+  :: (Applicative m, PrimMonad m, Fractional r, Traversable f, Integral n)
+  => n
+  -> f a
+  -> Gen (PrimState m)
+  -> MeasureT r m a
+fromObservationsApprox n xs g = ContT $ \f -> weightedAverageApprox n f xs g
 
 -- | Expectation is integration against the identity function.
 expectation :: Measure r r -> r
@@ -141,4 +157,21 @@ weightedAverageM
   -> m c
 weightedAverageM f = liftM average . traverse f
 {-# INLINE weightedAverageM #-}
+
+-- | An monadic approximate weighted average.
+weightedAverageApprox 
+  :: (Fractional c, Traversable f, PrimMonad m, Applicative m, Integral n)
+  => n
+  -> (a -> m c) 
+  -> f a 
+  -> Gen (PrimState m)
+  -> m c
+weightedAverageApprox n f xs g = 
+  sampleReplace n xs g >>= (liftM average . traverse f)
+{-# INLINE weightedAverageApprox #-}
+
+-- | Round to a specified number of digits.
+roundTo :: Int -> Double -> Double
+roundTo n f = fromIntegral (round $ f * (10 ^ n) :: Int) / (10.0 ^^ n)
+{-# INLINE roundTo #-}
 

@@ -5,6 +5,7 @@ import Control.Arrow
 import Control.Error
 import Control.Lens hiding (to)
 import Control.Monad
+import Control.Monad.Cont
 import Control.Monad.Primitive
 import Control.Monad.Trans
 import Data.HashMap.Strict (HashMap)
@@ -39,6 +40,14 @@ altBetaMeasure epochs a b g = do
   bs <- lift $ replicateM epochs (genContVar (betaDistr a b) g)
   fromObservationsT bs
 
+approxBetaMeasure nInnerApprox nOuterApprox a b g = do
+  bs <- lift $ genBetaSamples nInnerApprox a b g
+  fromObservationsApprox nOuterApprox bs g
+
+approxBinomialMeasure nInnerApprox nOuterApprox n p g = do
+  bs <- lift $ genBinomSamples nInnerApprox n p g
+  fromObservationsApprox nOuterApprox bs g
+
 
 -- | A standard beta-binomial conjugate model.  Notice how naturally it's 
 --   expressed using do-notation!
@@ -46,6 +55,38 @@ betaBinomialConjugate :: Double -> Double -> Int -> Measure Double Int
 betaBinomialConjugate a b n = do
   p <- betaMeasure a b
   binomMeasure n p
+
+altBetaBinomialConjugate a b n g = do
+  p <- altBetaMeasure 1000 a b g
+  binomMeasure n p
+
+approxBetaBinomialConjugate
+  :: Double -> Double -> Int -> Gen RealWorld -> Model Int 
+approxBetaBinomialConjugate a b n g = do
+  p <- approxBetaMeasure 100000 100 a b g
+  approxBinomialMeasure 100 100 n p g
+
+
+
+-- | Observe a binomial distribution.
+genBinomSamples
+  :: (Applicative m, PrimMonad m)
+  => Int
+  -> Int
+  -> Double
+  -> Gen (PrimState m)
+  -> m [Int]
+genBinomSamples n m p g = replicateM n $ genBinomial m p g 
+
+-- | Observe a beta distribution.
+genBetaSamples
+  :: (Applicative m, PrimMonad m)
+  => Int
+  -> Double
+  -> Double
+  -> Gen (PrimState m)
+  -> m [Double]
+genBetaSamples n a b g = replicateM n $ genContVar (betaDistr a b) g
 
 -- | Observe a gamma distribution.
 genGammaSamples 
@@ -207,4 +248,14 @@ gaussianMixtureModel n observed g = do
                C -> lift $ genNormalSamples n 1 1 g
 
   fromObservationsT samples
+
+-- | Count the number of Trues in a list.
+countTrue :: [Bool] -> Int
+countTrue = length . filter id
+
+genBernoulli :: PrimMonad m => Double -> Gen (PrimState m) -> m Bool
+genBernoulli p g = uniform g >>= return . (< p)
+
+genBinomial :: PrimMonad m => Int -> Double -> Gen (PrimState m) -> m Int
+genBinomial n p g = replicateM n (genBernoulli p g) >>= return . countTrue
 
