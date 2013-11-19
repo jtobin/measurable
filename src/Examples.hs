@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 import Control.Applicative
 import Control.Arrow
 import Control.Error
@@ -51,7 +49,7 @@ approxBinomialMeasure nInnerApprox nOuterApprox n p g = do
 
 -- | A standard beta-binomial conjugate model.  Notice how naturally it's 
 --   expressed using do-notation!
-betaBinomialConjugate :: Double -> Double -> Int -> Measure Double Int
+betaBinomialConjugate :: Double -> Double -> Int -> Measure Int
 betaBinomialConjugate a b n = do
   p <- betaMeasure a b
   binomMeasure n p
@@ -115,14 +113,14 @@ genNormalSamples n m t g = replicateM n $ normal m (1 / t) g
 --   t      ~ gamma(a, b)
 --   (X, t) ~ NormalGamma(mu, lambda, a, b)
 normalGammaMeasure 
-  :: (Fractional r, Applicative m, PrimMonad m) 
+  :: (Applicative m, PrimMonad m) 
   => Int
   -> Double
   -> Double
   -> Double
   -> Double
   -> Gen (PrimState m)
-  -> MeasureT r m (Double, Double)
+  -> MeasureT m (Double, Double)
 normalGammaMeasure n a b mu lambda g = do
   gammaSamples <- lift $ genGammaSamples n a b g
   precision    <- fromObservationsT gammaSamples
@@ -136,14 +134,14 @@ normalGammaMeasure n a b mu lambda g = do
 --   various return types.  Here we have a probability distribution over hash 
 --   maps.
 altNormalGammaMeasure 
-  :: (Fractional r, Applicative m, PrimMonad m) 
+  :: (Applicative m, PrimMonad m) 
   => Int
   -> Double
   -> Double
   -> Double
   -> Double
   -> Gen (PrimState m)
-  -> MeasureT r m (HashMap String Double)
+  -> MeasureT m (HashMap String Double)
 altNormalGammaMeasure n a b mu lambda g = do
   gammaSamples <- lift $ genGammaSamples n a b g
   precision    <- fromObservationsT gammaSamples
@@ -155,14 +153,14 @@ altNormalGammaMeasure n a b mu lambda g = do
 
 -- | A normal-normal gamma conjugate model
 normalNormalGammaMeasure 
-  :: (Fractional r, Applicative m, PrimMonad m) 
+  :: (Applicative m, PrimMonad m) 
   => Int
   -> Double
   -> Double
   -> Double
   -> Double
   -> Gen (PrimState m)
-  -> MeasureT r m Double
+  -> MeasureT m Double
 normalNormalGammaMeasure n a b mu lambda g = do
   (m, t) <- normalGammaMeasure n a b mu lambda g
   normalSamples <- lift $ genNormalSamples n m t g
@@ -170,14 +168,14 @@ normalNormalGammaMeasure n a b mu lambda g = do
 
 -- | Alternate normal-normal gamma conjugate model.
 altNormalNormalGammaMeasure
-  :: (Fractional r, Applicative m, PrimMonad m) 
+  :: (Applicative m, PrimMonad m) 
   => Int
   -> Double
   -> Double
   -> Double
   -> Double
   -> Gen (PrimState m)
-  -> MeasureT r m Double
+  -> MeasureT m Double
 altNormalNormalGammaMeasure n a b mu lambda g = do
   parameterHash <- altNormalGammaMeasure n a b mu lambda g
   let m = fromMaybe (error "no location!") $ 
@@ -200,7 +198,7 @@ binomMeasure
   :: (Applicative m, Monad m)
   => Int
   -> Double
-  -> MeasureT Double m Int
+  -> MeasureT m Int
 binomMeasure n p = fromDensityCountingT (binom p n) [0..n]
 
 -- | Note that we can handle all sorts of things that have densities w/respect
@@ -218,8 +216,8 @@ categoricalOnGroupDensity g
 
 -- | Here's a measure defined on the Group data type. 
 categoricalOnGroupMeasure 
-  :: (Applicative m, Monad m, Fractional r)
-  => MeasureT r m Group
+  :: (Applicative m, Monad m)
+  => MeasureT m Group
 categoricalOnGroupMeasure = 
   fromDensityCountingT categoricalOnGroupDensity [A, B, C]
 
@@ -235,11 +233,11 @@ categoricalOnGroupMeasure =
 --   S     ~ observed from categorical
 --
 gaussianMixtureModel
-  :: (Fractional r, Applicative m, PrimMonad m)
+  :: (Applicative m, PrimMonad m)
   => Int
   -> [Group] 
   -> Gen (PrimState m)
-  -> MeasureT r m Double
+  -> MeasureT m Double
 gaussianMixtureModel n observed g = do
   s       <- fromObservationsT observed
   samples <- case s of
@@ -254,8 +252,8 @@ countTrue :: [Bool] -> Int
 countTrue = length . filter id
 
 genBernoulli :: PrimMonad m => Double -> Gen (PrimState m) -> m Bool
-genBernoulli p g = uniform g >>= return . (< p)
+genBernoulli p g = liftM (< p) (uniform g)
 
 genBinomial :: PrimMonad m => Int -> Double -> Gen (PrimState m) -> m Int
-genBinomial n p g = replicateM n (genBernoulli p g) >>= return . countTrue
+genBinomial n p g = liftM countTrue (replicateM n $ genBernoulli p g)
 
