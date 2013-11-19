@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE BangPatterns #-}
 
 module Measurable.Core where
@@ -8,27 +11,26 @@ import Control.Monad.Primitive
 import Control.Monad.Trans.Cont
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Foldable
-import Data.Monoid
 import qualified Data.Set as Set
 import Data.Traversable hiding (mapM)
 import Numeric.Integration.TanhSinh
 import System.Random.MWC
 import System.Random.Represent
 
--- | A measure is represented as a continuation.  Strictly it should have a 
---   double return type, but the polymorphism doesn't seem to hurt in practice.
-type Measure r a = Cont r a
-type MeasureT r m a = ContT r m a
+-- | A measure is represented as a continuation.
+type Measure a = Cont Double a
+type MeasureT m a = ContT Double m a
 
 -- | A model is a proper measure wrapped around a sampling monad.
-type Model a = MeasureT Double IO a
+type Model a = MeasureT IO a
 
 -- | A more appropriate version of runCont.
-integrate :: (a -> r) -> Measure r a -> r
+integrate :: (a -> Double) -> Measure a -> Double
 integrate = flip runCont
 
-integrateT :: Monad m => (a -> r) -> MeasureT r m a -> m r
-integrateT f = (`runContT` (return . f))
+integrateT :: Monad m => (a -> Double) -> MeasureT m a -> m Double
+integrateT f = (`runContT` fLifted)
+  where fLifted = return . f
 
 -- | Things like convolution are trivially expressed by lifted arithmetic 
 --   operators.
@@ -42,20 +44,22 @@ instance (Monad m, Num a) => Num (ContT r m a) where
 
 -- | Create a measure from a density w/respect to counting measure.
 fromDensityCounting
-  :: (Num r, Functor f, Foldable f)
-  => (a -> r)
+  :: (Functor f, Foldable f)
+  => (a -> Double)
   -> f a
-  -> Measure r a
+  -> Measure a
 fromDensityCounting f support = cont $ \g ->
-  Foldable.sum . fmap (liftA2 (*) g f) $ support
+    Foldable.sum $ (g /* f) <$> support
 
 fromDensityCountingT
-  :: (Num r, Applicative m, Traversable t, Monad m)
-  => (a -> r)
+  :: (Applicative m, Traversable t, Monad m)
+  => (a -> Double)
   -> t a
-  -> MeasureT r m a
+  -> MeasureT m a
 fromDensityCountingT p support = ContT $ \f ->
-  fmap Foldable.sum . traverse (liftA2 (liftA2 (*)) f (return . p)) $ support
+    fmap Foldable.sum . traverse (f //* pLifted) $ support
+  where
+    pLifted = return . p
 
 -- | Create a measure from a density w/respect to Lebesgue measure.
 --
@@ -66,60 +70,60 @@ fromDensityCountingT p support = ContT $ \f ->
 --
 --        This is included moreso for interest's sake and isn't particularly
 --        accurate.
-fromDensityLebesgue :: (Double -> Double) -> Measure Double Double
-fromDensityLebesgue d = cont $ \f -> quadratureTanhSinh $ liftA2 (*) f d
+fromDensityLebesgue :: (Double -> Double) -> Measure Double
+fromDensityLebesgue d = cont $ \f -> quadratureTanhSinh $ f /* d
   where quadratureTanhSinh = roundTo 2 . result . last . everywhere trap
 
 -- | Create a measure from observations sampled from some distribution.
 fromObservations
-  :: (Functor f, Foldable f, Fractional r)
+  :: (Functor f, Foldable f)
   => f a
-  -> Measure r a
+  -> Measure a
 fromObservations = cont . flip weightedAverage
 
 fromObservationsT
-  :: (Applicative m, Monad m, Fractional r, Traversable f)
+  :: (Applicative m, Monad m, Traversable f)
   => f a
-  -> MeasureT r m a
+  -> MeasureT m a
 fromObservationsT = ContT . flip weightedAverageM
 
 -- | Create an 'approximating measure' from observations.
 fromObservationsApprox
-  :: (Applicative m, PrimMonad m, Fractional r, Traversable f, Integral n)
+  :: (Applicative m, PrimMonad m, Traversable f, Integral n)
   => n
   -> f a
   -> Gen (PrimState m)
-  -> MeasureT r m a
+  -> MeasureT m a
 fromObservationsApprox n xs g = ContT $ \f -> weightedAverageApprox n f xs g
 
 -- | Expectation is integration against the identity function.
-expectation :: Measure r r -> r
+expectation :: Measure Double -> Double
 expectation = integrate id 
 
-expectationT :: Monad m => MeasureT r m r -> m r
+expectationT :: Monad m => MeasureT m Double -> m Double
 expectationT = integrateT id
 
 -- | The variance is obtained by integrating against the usual function.
-variance :: Num r => Measure r r -> r
+variance :: Measure Double -> Double
 variance mu = integrate (^ 2) mu - expectation mu ^ 2
 
-varianceT :: (Monad m, Num r) => MeasureT r m r -> m r
+varianceT :: Monad m => MeasureT m Double -> m Double
 varianceT mu = liftM2 (-) (integrateT (^ 2) mu) (liftM (^ 2) (expectationT mu))
 
 -- | The measure applied to the underlying space.  This is trivially 1 for any 
 --   probability measure.
-volume :: Num r => Measure r r -> r
+volume :: Measure Double -> Double
 volume = integrate (const 1)
 
-volumeT :: (Num r, Monad m) => MeasureT r m r -> m r
+volumeT :: Monad m => MeasureT m Double -> m Double
 volumeT = integrateT (const 1)
 
 -- | Cumulative distribution function.  Only makes sense for Fractional/Ord
 --   inputs.
-cdf :: (Fractional r, Ord r) => Measure r r -> r -> r
+cdf :: Measure Double -> Double -> Double
 cdf mu x = expectation $ negativeInfinity `to` x <$> mu
 
-cdfT :: (Fractional r, Ord r, Monad m) => MeasureT r m r -> r -> m r
+cdfT :: Monad m => MeasureT m Double -> Double -> m Double
 cdfT mu x = expectationT $ negativeInfinity `to` x <$> mu
 
 -- | Indicator function for the interval a <= x <= b.  Useful for integrating 
@@ -130,9 +134,11 @@ to a b x | x >= a && x <= b = 1
 
 -- | Integrate over an ordered, discrete set.
 containing :: (Num a, Ord b) => [b] -> b -> a
-containing xs x | x `Set.member` set = 1
-                | otherwise          = 0
-  where set = Set.fromList xs
+containing xs x 
+    | x `Set.member` set = 1
+    | otherwise          = 0
+  where
+    set = Set.fromList xs
 
 -- | End of the line.
 negativeInfinity :: Fractional a => a
@@ -145,7 +151,11 @@ average xs = fst $ Foldable.foldl'
 {-# INLINE average #-}
 
 -- | Weighted average.
-weightedAverage :: (Functor f, Foldable f, Fractional c) => (a -> c) -> f a -> c
+weightedAverage
+  :: (Functor f, Foldable f, Fractional c)
+  => (a -> c)
+  -> f a
+  -> c
 weightedAverage f = average . fmap f
 {-# INLINE weightedAverage #-}
 
@@ -174,4 +184,12 @@ weightedAverageApprox n f xs g =
 roundTo :: Int -> Double -> Double
 roundTo n f = fromIntegral (round $ f * (10 ^ n) :: Int) / (10.0 ^^ n)
 {-# INLINE roundTo #-}
+
+-- | Lifted multiplication.
+(/*) :: (Num c, Applicative f) => f c -> f c -> f c
+f /* g  = liftA2 (*) f g
+
+-- | Doubly-lifted multiplication.
+(//*) :: (Num c, Applicative f, Applicative g) => f (g c) -> f (g c) -> f (g c)
+f //* g = liftA2 (liftA2 (*)) f g
 
