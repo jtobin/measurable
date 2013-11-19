@@ -187,9 +187,9 @@ roundTo n f = fromIntegral (round $ f * (10 ^ n) :: Int) / (10.0 ^^ n)
 
 -- | Lifted multiplication.
 (/*) :: (Num c, Applicative f) => f c -> f c -> f c
-f /* g  = liftA2 (*) f g
+(/*)  = liftA2 (*)
 
 -- | Doubly-lifted multiplication.
 (//*) :: (Num c, Applicative f, Applicative g) => f (g c) -> f (g c) -> f (g c)
-f //* g = liftA2 (liftA2 (*)) f g
+(//*) = liftA2 (/*)
 
