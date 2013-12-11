@@ -14,7 +14,7 @@ import Data.Vector (singleton)
 import qualified Data.Traversable as Traversable
 import Measurable.Core
 import Numeric.SpecFunctions
-import Statistics.Distribution
+import Statistics.Distribution hiding (mean, variance)
 import Statistics.Distribution.Normal
 import Statistics.Distribution.Beta
 import Statistics.Distribution.ChiSquared
@@ -38,14 +38,11 @@ altBetaMeasure epochs a b g = do
   bs <- lift $ replicateM epochs (genContVar (betaDistr a b) g)
   fromObservationsT bs
 
-approxBetaMeasure nInnerApprox nOuterApprox a b g = do
-  bs <- lift $ genBetaSamples nInnerApprox a b g
-  fromObservationsApprox nOuterApprox bs g
 
-approxBinomialMeasure nInnerApprox nOuterApprox n p g = do
-  bs <- lift $ genBinomSamples nInnerApprox n p g
-  fromObservationsApprox nOuterApprox bs g
-
+weirdFunction x
+  | x < 0 = sin x
+  | x >= 0 && x <= 1 = cos x 
+  | x > 1 = log x
 
 -- | A standard beta-binomial conjugate model.  Notice how naturally it's 
 --   expressed using do-notation!
@@ -57,13 +54,6 @@ betaBinomialConjugate a b n = do
 altBetaBinomialConjugate a b n g = do
   p <- altBetaMeasure 1000 a b g
   binomMeasure n p
-
-approxBetaBinomialConjugate
-  :: Double -> Double -> Int -> Gen RealWorld -> Model Int 
-approxBetaBinomialConjugate a b n g = do
-  p <- approxBetaMeasure 100000 100 a b g
-  approxBinomialMeasure 100 100 n p g
-
 
 
 -- | Observe a binomial distribution.
@@ -205,7 +195,7 @@ binomMeasure n p = fromDensityCountingT (binom p n) [0..n]
 --   to counting measure.  They don't necessarily have to have domains that 
 --   are instances of Num (or even have Ordered domains, though that's the case
 --   here).
-data Group = A | B | C deriving (Enum, Eq, Ord, Show)
+data Group = A | B | C deriving (Eq, Show)
 
 -- | Density of a categorical measure.
 categoricalOnGroupDensity :: Fractional a => Group -> a

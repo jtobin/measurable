@@ -5,24 +5,20 @@
 
 module Measurable.Core where
 
+import Control.Arrow
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Primitive
 import Control.Monad.Trans.Cont
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Foldable
-import qualified Data.Set as Set
+import Data.Hashable
+import qualified Data.HashSet as HashSet
 import Data.Traversable hiding (mapM)
 import Numeric.Integration.TanhSinh
-import System.Random.MWC
-import System.Random.Represent
 
 -- | A measure is represented as a continuation.
 type Measure a = Cont Double a
 type MeasureT m a = ContT Double m a
-
--- | A model is a proper measure wrapped around a sampling monad.
-type Model a = MeasureT IO a
 
 -- | A more appropriate version of runCont.
 integrate :: (a -> Double) -> Measure a -> Double
@@ -34,13 +30,20 @@ integrateT f = (`runContT` fLifted)
 
 -- | Things like convolution are trivially expressed by lifted arithmetic 
 --   operators.
+--
+--   Note that the complexity of integration over a sum, difference, or product
+--   of 'n' measures, each encoding 'm' elements, is O(m^n).
+--
+--   The reason for the complexity is that, in the case of dependent measures,
+--   a lot of book-keeping has to be done.  Operations on independent measures
+--   can (theoretically) be implemented with drastically lower complexity.
 instance (Monad m, Num a) => Num (ContT r m a) where
   (+)         = liftA2 (+)
   (-)         = liftA2 (-)
   (*)         = liftA2 (*)
   abs         = id
   signum      = error "signum: not supported for Measures"
-  fromInteger = error "fromInteger: not supported for Measures"
+  fromInteger = return . fromInteger
 
 -- | Create a measure from a density w/respect to counting measure.
 fromDensityCounting
@@ -72,7 +75,7 @@ fromDensityCountingT p support = ContT $ \f ->
 --        accurate.
 fromDensityLebesgue :: (Double -> Double) -> Measure Double
 fromDensityLebesgue d = cont $ \f -> quadratureTanhSinh $ f /* d
-  where quadratureTanhSinh = roundTo 2 . result . last . everywhere trap
+  where quadratureTanhSinh = result . last . everywhere trap
 
 -- | Create a measure from observations sampled from some distribution.
 fromObservations
@@ -81,20 +84,29 @@ fromObservations
   -> Measure a
 fromObservations = cont . flip weightedAverage
 
+-- fmap f mu = cont $ \g -> integrate (g . f) mu
+-- liftM2 (+) mu nu = do
+--   a <- mu
+--   b <- nu
+--   return $ a + b
+-- 
+-- mu + nu = cont $ \g -> integrate mu + integrate nu
+
+
+
 fromObservationsT
   :: (Applicative m, Monad m, Traversable f)
   => f a
   -> MeasureT m a
 fromObservationsT = ContT . flip weightedAverageM
 
--- | Create an 'approximating measure' from observations.
-fromObservationsApprox
-  :: (Applicative m, PrimMonad m, Traversable f, Integral n)
-  => n
-  -> f a
-  -> Gen (PrimState m)
-  -> MeasureT m a
-fromObservationsApprox n xs g = ContT $ \f -> weightedAverageApprox n f xs g
+-- | A synonym for fmap.
+push :: (a -> b) -> Measure a -> Measure b
+push = fmap
+
+-- | Yet another.
+pushT :: Monad m => (a -> b) -> MeasureT m a -> MeasureT m b
+pushT = fmap
 
 -- | Expectation is integration against the identity function.
 expectation :: Measure Double -> Double
@@ -109,6 +121,16 @@ variance mu = integrate (^ 2) mu - expectation mu ^ 2
 
 varianceT :: Monad m => MeasureT m Double -> m Double
 varianceT mu = liftM2 (-) (integrateT (^ 2) mu) (liftM (^ 2) (expectationT mu))
+
+-- | Return the mean & variance in a pair.
+meanVariance :: Measure Double -> (Double, Double)
+meanVariance = expectation &&& variance
+
+meanVarianceT :: Monad m => MeasureT m Double -> m (Double, Double)
+meanVarianceT mu = do
+  m <- expectationT mu
+  v <- varianceT mu
+  return (m, v)
 
 -- | The measure applied to the underlying space.  This is trivially 1 for any 
 --   probability measure.
@@ -132,13 +154,13 @@ to :: (Num a, Ord a) => a -> a -> a -> a
 to a b x | x >= a && x <= b = 1
          | otherwise        = 0
 
--- | Integrate over an ordered, discrete set.
-containing :: (Num a, Ord b) => [b] -> b -> a
+-- | Integrate over a discrete, possibly unordered set.
+containing :: (Num a, Eq b, Hashable b) => [b] -> b -> a
 containing xs x 
-    | x `Set.member` set = 1
+    | x `HashSet.member` set = 1
     | otherwise          = 0
   where
-    set = Set.fromList xs
+    set = HashSet.fromList xs
 
 -- | End of the line.
 negativeInfinity :: Fractional a => a
@@ -167,18 +189,6 @@ weightedAverageM
   -> m c
 weightedAverageM f = liftM average . traverse f
 {-# INLINE weightedAverageM #-}
-
--- | An monadic approximate weighted average.
-weightedAverageApprox 
-  :: (Fractional c, Traversable f, PrimMonad m, Applicative m, Integral n)
-  => n
-  -> (a -> m c) 
-  -> f a 
-  -> Gen (PrimState m)
-  -> m c
-weightedAverageApprox n f xs g = 
-  sampleReplace n xs g >>= (liftM average . traverse f)
-{-# INLINE weightedAverageApprox #-}
 
 -- | Round to a specified number of digits.
 roundTo :: Int -> Double -> Double
