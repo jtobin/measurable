@@ -15,8 +15,6 @@ synopsis:            Basic measure wrangling.
 description:
   Various types, instances, and combinators that make it easy to play with
   measures.
-  .
-  <expand>
 
 source-repository head
   type: git
