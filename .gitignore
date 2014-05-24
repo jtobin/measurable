@@ -4,3 +4,6 @@ dist
 Setup.hs
 *hi
 *o
+sandbox
+.cabal-sandbox
+cabal.sandbox.config
