@@ -1,20 +1,39 @@
 name:                measurable
-version:             0.1.0.0
+version:             1.0.0.0
 license:             BSD3
 license-file:        LICENSE
+copyright:           (c) Jared Tobin 2013 - 2014.
 author:              Jared Tobin
 maintainer:          jared@jtobin.ca
+stability:           Experimental
+category:            Math
+homepage:            http://github.com/jtobin/measurable
+bug-reports:         http://github.com/jtobin/measurable/issues
 build-type:          Simple
-extra-source-files:  README.md
 cabal-version:       >=1.10
+synopsis:            Basic measure wrangling.
+description:
+  Various types, instances, and combinators that make it easy to play with
+  measures.
+  .
+  <expand>
+
+source-repository head
+  type: git
+  location: git://github.com/jtobin/measurable.git
 
 library
-  exposed-modules:     Measurable.Core
-  other-extensions:    BangPatterns
-  build-depends:       base                 >= 4.6
-                     , unordered-containers >= 0.2
-                     , integration          >= 0.2
-                     , transformers         >= 0.3
-                     , hashable             >= 1.2
-  hs-source-dirs:      src
-  default-language:    Haskell2010
+  exposed-modules:  Measurable.Core
+  hs-source-dirs:   src
+  default-language: Haskell2010
+
+  other-extensions:
+    BangPatterns
+    FlexibleInstances
+
+  build-depends:
+      base         >= 4.6
+    , integration  >= 0.2
+    , mtl          >= 2.1.2
+    , transformers >= 0.3
+
