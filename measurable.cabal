@@ -42,6 +42,7 @@ library
   default-language: Haskell2010
   exposed-modules:
       Measurable.Core
+    , Measurable.Measures
     , Measurable.Util
 
   other-extensions:
