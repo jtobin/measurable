@@ -1,7 +1,7 @@
 measurable
 ----------
 
-*measurable* is a simple shallowly-embedded DSL for dealing with measures.
+**measurable** is a simple shallowly-embedded DSL for dealing with measures.
 
 It uses a `Measure` synonym for a standard continuation type with a restricted
 output type and no `callCC` implementation.  You can construct measures from
@@ -16,7 +16,7 @@ do-notation.
 Query measures by integrating meaurable functions against them.  Extract
 moments, cumulative density functions, or probabilities.
 
-Check out the module comments or **examples** folder for sample use.
+Check out the module comments or *examples* folder for sample use.
 
 Caveat: while fun to play with, and rewarding to see how measures fit together,
 measure operations as nested integrals are exponentially complex.  Don't expect
