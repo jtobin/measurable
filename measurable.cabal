@@ -2,7 +2,7 @@ name:                measurable
 version:             1.0.0.0
 license:             BSD3
 license-file:        LICENSE
-copyright:           (c) Jared Tobin 2013 - 2014.
+copyright:           (c) Jared Tobin 2013 - 2015.
 author:              Jared Tobin
 maintainer:          jared@jtobin.ca
 stability:           Experimental
@@ -10,28 +10,70 @@ category:            Math
 homepage:            http://github.com/jtobin/measurable
 bug-reports:         http://github.com/jtobin/measurable/issues
 build-type:          Simple
-cabal-version:       >=1.10
-synopsis:            Basic measure wrangling.
+cabal-version:       >=1.18
+synopsis:            A shallowly-embedded DSL for basic measure wrangling.
 description:
-  Various types, instances, and combinators that make it easy to play with
-  measures.
+  @measurable@ is a simple shallowly-embedded DSL for dealing with measures.
+
+  It adds a @Measure@ synonym for a standard continuation type with a
+  restricted output type and no @callCC@ implementation.
+
+  You can construct measures from samples, mass/density functions, or even
+  sampling functions.
+
+  Construct image measures by @fmap@-ing measurable functions over them, or
+  create new measures from existing ones by seamless measure arithmetic provided
+  by a simple @Num@ instance.  Create measures from graphs of other measures
+  using the @Monad@ instance and do-notation.
+
+  Query measures by integrating meaurable functions against them.  Extract
+  moments, cumulative density functions, or probabilities.
+
+  Caveat: while fun to play with, and rewarding to see how measures fit
+  together, measure operations as nested integrals are exponentially complex.
+  Don't expect them to scale very far!
 
 source-repository head
   type: git
   location: git://github.com/jtobin/measurable.git
 
 library
-  exposed-modules:  Measurable.Core
   hs-source-dirs:   src
   default-language: Haskell2010
+  exposed-modules:
+      Measurable.Core
+    , Measurable.Measures
+    , Measurable.Util
 
   other-extensions:
     BangPatterns
     FlexibleInstances
 
   build-depends:
-      base         >= 4.6
-    , integration  >= 0.2
-    , mtl          >= 2.1.2
-    , transformers >= 0.3
+      base >= 4.7 && < 4.8
+    , foldl
+    , integration
+    , mtl
+    , statistics
+    , transformers
+
+Test-suite measurable-examples
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      src, examples
+  main-is:             CRP.hs
+  default-language:    Haskell2010
+  ghc-options:
+    -threaded -rtsopts
+  build-depends:
+      base >= 4.7 && < 4.8
+    , containers
+    , foldl
+    , integration
+    , lens
+    , measurable
+    , mtl
+    , mwc-random
+    , primitive
+    , statistics
+    , transformers
 
