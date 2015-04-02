@@ -15,11 +15,11 @@ synopsis:            A shallowly-embedded DSL for basic measure wrangling.
 description:
   @measurable@ is a simple shallowly-embedded DSL for dealing with measures.
 
-  It adds a @Measure@ type as a synonym for a standard continuation type with
-  a restricted output type and no @callCC@ implementation.
+  It adds a @Measure@ synonym for a standard continuation type with a
+  restricted output type and no @callCC@ implementation.
 
-  You can construct measures from samples, density functions, or even sampling
-  functions using a monad transformer @MeasureT@ type.
+  You can construct measures from samples, mass/density functions, or even
+  sampling functions.
 
   Construct image measures by @fmap@-ing measurable functions over them, or
   create new measures from existing ones by seamless measure arithmetic provided
