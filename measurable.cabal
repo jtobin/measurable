@@ -38,9 +38,11 @@ source-repository head
   location: git://github.com/jtobin/measurable.git
 
 library
-  exposed-modules:  Measurable.Core
   hs-source-dirs:   src
   default-language: Haskell2010
+  exposed-modules:
+      Measurable.Core
+    , Measurable.Util
 
   other-extensions:
     BangPatterns
