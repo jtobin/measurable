@@ -2,6 +2,7 @@
 module Measurable.Measures where
 
 import Measurable.Core
+import Numeric.SpecFunctions (choose)
 import Statistics.Distribution
 import qualified Statistics.Distribution.Beta as Statistics
 import qualified Statistics.Distribution.Binomial as Statistics
@@ -42,8 +43,12 @@ beta a b = fromDensityFunction pdf where
 
 binomial :: Int -> Double -> Measure Int
 binomial n p = fromMassFunction pmf [0..n] where
-  pmf = probability $ Statistics.binomial n p
+  pmf = binomialMass n p
 
 bernoulli :: Double -> Measure Int
 bernoulli = binomial 1
+
+binomialMass :: Int -> Double -> Int -> Double
+binomialMass n p k = bc * p ^ k * (1 - p) ^ (n - k) where
+  bc = n `choose` k
 

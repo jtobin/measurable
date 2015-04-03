@@ -53,6 +53,7 @@ library
       base >= 4.7 && < 4.8
     , foldl
     , integration
+    , math-functions
     , mtl
     , statistics
     , transformers

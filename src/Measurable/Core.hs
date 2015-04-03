@@ -93,8 +93,13 @@ instance (Applicative m, Num a) => Num (ContT Double m a) where
 --   >>> let mu = fromMassFunction (binomialPmf 10 0.2) [0..10]
 --   >>> integrate fromIntegral mu
 --   2.0
-fromMassFunction :: Foldable f => (a -> Double) -> f a -> Measure a
-fromMassFunction f support = cont $ \g -> weightedAverage (g /* f) support
+fromMassFunction
+  :: (Functor f, Foldable f)
+  => (a -> Double)
+  -> f a
+  -> Measure a
+fromMassFunction f support = cont $ \g ->
+  Foldable.sum $ (g /* f) <$> support
 
 fromMassFunctionT :: (Applicative m, Traversable t)
   => (a -> Double)
