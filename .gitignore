@@ -7,3 +7,6 @@ Setup.hs
 sandbox
 .cabal-sandbox
 cabal.sandbox.config
+debug
+.stack-work
+examples
