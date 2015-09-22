@@ -67,8 +67,8 @@ instance MonadTrans (ContT r) where
 --   >>> let mu = fromSamples [-1, 0, 1]
 --   >>> expectation mu
 --   0.0
---   >>> expectation mu
---   1.0
+--   >>> variance mu
+--   0.6666666666666666
 integrate :: (a -> Double) -> Measure a -> Double
 integrate = flip runCont
 
