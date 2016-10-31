@@ -1,5 +1,7 @@
-measurable
-----------
+
+# measurable
+
+[![BSD3 License](https://img.shields.io/badge/license-BSD3-blue.svg)](https://github.com/jtobin/measurable/blob/master/LICENSE)
 
 **measurable** is a simple shallowly-embedded DSL for dealing with measures.
 
@@ -21,5 +23,4 @@ Check out the module comments or *examples* folder for sample use.
 Caveat: while fun to play with, and rewarding to see how measures fit together,
 measure operations as nested integrals are exponentially complex.  Don't expect
 them to scale very far!
-
 
