@@ -24,6 +24,7 @@ and implementation of the library here:
 
 * [Foundations of the Giry Monad][foun]
 * [Implementing the Giry Monad][impl]
+* [The Applicative Structure of the Giry Monad][appl]
 
 Caveat: while fun to play with, and rewarding to see how measures fit together,
 measure operations as nested integrals are exponentially complex.  Don't expect
@@ -31,3 +32,4 @@ them to scale very far!
 
 [foun]: https://jtobin.io/giry-monad-foundations
 [impl]: https://jtobin.io/giry-monad-implementation
+[appl]: https://jtobin.io/giry-monad-applicative
