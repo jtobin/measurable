@@ -18,9 +18,8 @@ do-notation.
 Query measures by integrating meaurable functions against them.  Extract
 moments, cumulative density functions, or probabilities.
 
-Check out the module comments or *examples* folder for sample use.  You can
-also check out a few blog posts I wrote about the theoretical foundations and
-implementation of the library here:
+You can check out a few blog posts I wrote about the theoretical foundations
+and implementation of the library here:
 
 * [Foundations of the Giry Monad][foun]
 * [Implementing the Giry Monad][impl]
