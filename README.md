@@ -15,7 +15,7 @@ provided by a simple `Num` instance enabled by an `Applicative` instance.
 Create measures from graphs of other measures using the `Monad` instance and
 do-notation.
 
-Query measures by integrating meaurable functions against them.  Extract
+Query measures by integrating measurable functions against them.  Extract
 moments, cumulative density functions, or probabilities.
 
 You can check out a few blog posts I wrote about the theoretical foundations
@@ -25,10 +25,14 @@ and implementation of the library here:
 * [Implementing the Giry Monad][impl]
 * [The Applicative Structure of the Giry Monad][appl]
 
+A more polished and extended version of the above appears in chapter three of
+[my dissertation][diss].
+
 Caveat: while fun to play with, and rewarding to see how measures fit together,
 measure operations as nested integrals are exponentially complex.  Don't expect
 them to scale very far!
 
+[diss]: https://jtobin.io/assets/jtobin-dissertation.pdf
 [foun]: https://jtobin.io/giry-monad-foundations
 [impl]: https://jtobin.io/giry-monad-implementation
 [appl]: https://jtobin.io/giry-monad-applicative
